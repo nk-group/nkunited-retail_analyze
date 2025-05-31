@@ -42,21 +42,46 @@
     border-radius: 4px 0 0 4px;
 }
 
-/* モーダル内のテーブル */
+/* モーダル内のテーブル - 高さ制限とスクロール対応 */
+.maker-reference-table-container {
+    max-height: 400px; /* 高さ制限 */
+    overflow-y: auto;   /* 縦スクロール有効 */
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
 .maker-reference-table {
     font-size: 0.9rem;
+    margin-bottom: 0; /* テーブル下のマージンを削除 */
+}
+
+.maker-reference-table thead th {
+    position: sticky; /* ヘッダー固定 */
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+    border-bottom: 2px solid #dee2e6;
 }
 
 .maker-reference-table tbody tr {
     cursor: pointer;
+    transition: all 0.2s ease; /* スムーズなトランジション */
 }
 
 .maker-reference-table tbody tr:hover {
-    background-color: #f8f9fa;
+    background-color: #f8f9fa !important;
+    transform: scale(1.01); /* わずかに拡大 */
 }
 
 .maker-reference-table tbody tr.selected {
-    background-color: #e3f2fd;
+    background-color: #0d6efd !important; /* Bootstrap primary色 */
+    color: white !important;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.3); /* 影を追加 */
+}
+
+.maker-reference-table tbody tr.selected:hover {
+    background-color: #0b5ed7 !important; /* より濃い青 */
 }
 
 /* 検索フォーム */
@@ -65,6 +90,76 @@
     padding: 15px;
     border-radius: 8px;
     margin-bottom: 20px;
+}
+
+/* 選択情報表示エリア */
+.selected-maker-info {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border: 2px solid #2196f3;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: none; /* 初期は非表示 */
+}
+
+.selected-maker-info.show {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.selected-maker-info .info-header {
+    font-weight: bold;
+    color: #1976d2;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+}
+
+.selected-maker-info .info-content {
+    color: #0d47a1;
+    font-size: 0.95rem;
+}
+
+/* 検索結果情報 */
+.search-results-info {
+    background: #e9ecef;
+    padding: 8px 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+/* ページング */
+.modal-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 10px 0;
+    border-top: 1px solid #dee2e6;
+}
+
+.modal-pagination button {
+    min-width: 80px;
+}
+
+.modal-pagination .page-info {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin: 0 10px;
 }
 </style>
 <?= $this->endSection() ?>
@@ -275,8 +370,25 @@
                     </div>
                 </div>
 
+                <!-- 選択されたメーカー情報表示 -->
+                <div id="selected_maker_info" class="selected-maker-info">
+                    <div class="info-header">
+                        <i class="bi bi-check-circle-fill me-2"></i>選択中のメーカー
+                    </div>
+                    <div class="info-content">
+                        <strong>コード:</strong> <span id="selected_code">-</span><br>
+                        <strong>名称:</strong> <span id="selected_name">-</span>
+                    </div>
+                </div>
+
+                <!-- 検索結果情報 -->
+                <div id="search_results_info" class="search-results-info" style="display: none;">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <span id="results_count_text">-</span>
+                </div>
+
                 <!-- 検索結果テーブル -->
-                <div class="table-responsive">
+                <div class="maker-reference-table-container">
                     <table class="table table-hover maker-reference-table">
                         <thead class="table-light">
                             <tr>
@@ -288,6 +400,17 @@
                             <!-- Ajax で結果を表示 -->
                         </tbody>
                     </table>
+                </div>
+
+                <!-- ページング -->
+                <div id="modal_pagination" class="modal-pagination" style="display: none;">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_prev_page" disabled>
+                        <i class="bi bi-chevron-left"></i> 前へ
+                    </button>
+                    <span class="page-info" id="page_info">1 / 1</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_next_page" disabled>
+                        次へ <i class="bi bi-chevron-right"></i>
+                    </button>
                 </div>
 
                 <!-- ローディング表示 -->
@@ -333,65 +456,130 @@ document.addEventListener('DOMContentLoaded', function() {
     // メーカー参照モーダル関連の変数
     let currentTargetField = null;
     let selectedMaker = null;
+    let currentPage = 1;
+    let currentKeyword = '';
+    let totalPages = 1;
+
+    // DOM要素の取得
+    const makerModal = document.getElementById('makerReferenceModal');
+    const resultsContainer = document.getElementById('maker_search_results');
+    const loadingDiv = document.getElementById('modal_loading');
+    const noResultsDiv = document.getElementById('modal_no_results');
+    const selectButton = document.getElementById('btn_select_maker');
+    const resultsInfoDiv = document.getElementById('search_results_info');
+    const resultsCountText = document.getElementById('results_count_text');
+    const paginationDiv = document.getElementById('modal_pagination');
+    const pageInfo = document.getElementById('page_info');
+    const btnPrevPage = document.getElementById('btn_prev_page');
+    const btnNextPage = document.getElementById('btn_next_page');
+    
+    // 選択情報表示用の要素
+    const selectedMakerInfoDiv = document.getElementById('selected_maker_info');
+    const selectedCodeSpan = document.getElementById('selected_code');
+    const selectedNameSpan = document.getElementById('selected_name');
 
     // モーダル表示時の処理
-    const makerModal = document.getElementById('makerReferenceModal');
     makerModal.addEventListener('show.bs.modal', function(event) {
         const button = event.relatedTarget;
-        currentTargetField = button.getAttribute('data-target');
+        if (button) {
+            currentTargetField = button.getAttribute('data-target');
+        }
         
         // 検索フィールドをクリア
         document.getElementById('modal_search_keyword').value = '';
         
+        // UI要素の非表示
+        resultsInfoDiv.style.display = 'none';
+        paginationDiv.style.display = 'none';
+        noResultsDiv.style.display = 'none';
+        loadingDiv.style.display = 'none';
+        
+        // 選択情報をクリア
+        clearSelectedMakerInfo();
+        
+        // テーブルクリア
+        resultsContainer.innerHTML = '';
+        
         // 初期検索実行（全件表示）
-        searchMakersInModal('');
+        searchMakersInModal('', 1);
     });
 
     // モーダル検索処理
     document.getElementById('btn_modal_search').addEventListener('click', function() {
         const keyword = document.getElementById('modal_search_keyword').value.trim();
-        searchMakersInModal(keyword);
+        searchMakersInModal(keyword, 1);
     });
 
     // Enterキーでの検索
     document.getElementById('modal_search_keyword').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {
             const keyword = this.value.trim();
-            searchMakersInModal(keyword);
+            searchMakersInModal(keyword, 1);
+        }
+    });
+
+    // ページングボタンのイベント
+    btnPrevPage.addEventListener('click', function() {
+        if (currentPage > 1) {
+            searchMakersInModal(currentKeyword, currentPage - 1);
+        }
+    });
+
+    btnNextPage.addEventListener('click', function() {
+        if (currentPage < totalPages) {
+            searchMakersInModal(currentKeyword, currentPage + 1);
         }
     });
 
     // メーカー選択処理
-    document.getElementById('btn_select_maker').addEventListener('click', function() {
+    selectButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
         if (selectedMaker && currentTargetField) {
-            document.getElementById(currentTargetField).value = selectedMaker.manufacturer_code;
+            // 対象フィールドに値を設定
+            const targetField = document.getElementById(currentTargetField);
+            if (targetField) {
+                targetField.value = selectedMaker.manufacturer_code;
+            }
             
             // モーダルを閉じる
-            const modal = bootstrap.Modal.getInstance(makerModal);
-            modal.hide();
+            try {
+                const modal = bootstrap.Modal.getInstance(makerModal);
+                if (modal) {
+                    modal.hide();
+                } else {
+                    makerModal.querySelector('.btn-close').click();
+                }
+            } catch (error) {
+                // 強制的にモーダルを閉じる
+                makerModal.classList.remove('show');
+                document.body.classList.remove('modal-open');
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) backdrop.remove();
+            }
             
             // 選択状態をリセット
             selectedMaker = null;
-            currentTargetField = null;
         }
     });
 
     // Ajax検索関数
-    function searchMakersInModal(keyword) {
-        const resultsContainer = document.getElementById('maker_search_results');
-        const loadingDiv = document.getElementById('modal_loading');
-        const noResultsDiv = document.getElementById('modal_no_results');
-        const selectButton = document.getElementById('btn_select_maker');
-
+    function searchMakersInModal(keyword, page = 1) {
         // 表示状態をリセット
         resultsContainer.innerHTML = '';
         loadingDiv.style.display = 'block';
         noResultsDiv.style.display = 'none';
+        resultsInfoDiv.style.display = 'none';
+        paginationDiv.style.display = 'none';
         selectButton.disabled = true;
         selectedMaker = null;
 
-        // Ajax検索実行
-        const searchUrl = `/sales-analysis/search-makers?keyword=${encodeURIComponent(keyword)}`;
+        // 現在の検索条件を保存
+        currentKeyword = keyword;
+        currentPage = page;
+
+        const searchUrl = `<?= site_url('sales-analysis/search-makers') ?>?keyword=${encodeURIComponent(keyword)}&page=${page}`;
         
         fetch(searchUrl, {
             method: 'GET',
@@ -405,22 +593,64 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (data.success && data.data.length > 0) {
                 displayMakersInModal(data.data);
+                updateResultsInfo(data.pagination, data.keyword);
+                updatePagination(data.pagination);
             } else {
                 noResultsDiv.style.display = 'block';
+                if (data.pagination && data.pagination.total_count === 0) {
+                    updateResultsInfo(data.pagination, data.keyword);
+                }
             }
         })
         .catch(error => {
-            console.error('検索エラー:', error);
             loadingDiv.style.display = 'none';
             noResultsDiv.style.display = 'block';
         });
     }
 
+    // 検索結果情報更新関数
+    function updateResultsInfo(pagination, keyword) {
+        if (!pagination) return;
+        
+        let infoText = '';
+        if (keyword) {
+            infoText = `「${keyword}」の検索結果: `;
+        } else {
+            infoText = '検索結果: ';
+        }
+        
+        if (pagination.total_count === 0) {
+            infoText += '該当なし';
+        } else {
+            infoText += `${pagination.total_count}件中 ${pagination.from}-${pagination.to}件目を表示`;
+        }
+        
+        resultsCountText.textContent = infoText;
+        resultsInfoDiv.style.display = 'block';
+    }
+
+    // ページング更新関数
+    function updatePagination(pagination) {
+        if (!pagination || pagination.total_pages <= 1) {
+            paginationDiv.style.display = 'none';
+            return;
+        }
+        
+        currentPage = pagination.current_page;
+        totalPages = pagination.total_pages;
+        
+        // ページ情報表示
+        pageInfo.textContent = `${currentPage} / ${totalPages}`;
+        
+        // ボタンの有効/無効制御
+        btnPrevPage.disabled = !pagination.has_prev_page;
+        btnNextPage.disabled = !pagination.has_next_page;
+        
+        paginationDiv.style.display = 'flex';
+    }
+
     // 検索結果表示関数
     function displayMakersInModal(makers) {
-        const resultsContainer = document.getElementById('maker_search_results');
-        const selectButton = document.getElementById('btn_select_maker');
-        
         resultsContainer.innerHTML = '';
         
         makers.forEach(maker => {
@@ -441,10 +671,31 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.classList.add('selected');
                 selectedMaker = maker;
                 selectButton.disabled = false;
+                
+                // 選択されたメーカー情報を表示
+                updateSelectedMakerInfo(maker);
             });
             
             resultsContainer.appendChild(row);
         });
+    }
+
+    // 選択されたメーカー情報を更新する関数
+    function updateSelectedMakerInfo(maker) {
+        if (maker && selectedCodeSpan && selectedNameSpan && selectedMakerInfoDiv) {
+            selectedCodeSpan.textContent = maker.manufacturer_code;
+            selectedNameSpan.textContent = maker.manufacturer_name;
+            selectedMakerInfoDiv.classList.add('show');
+        }
+    }
+
+    // 選択情報をクリアする関数
+    function clearSelectedMakerInfo() {
+        if (selectedMakerInfoDiv) {
+            selectedMakerInfoDiv.classList.remove('show');
+        }
+        if (selectedCodeSpan) selectedCodeSpan.textContent = '-';
+        if (selectedNameSpan) selectedNameSpan.textContent = '-';
     }
 
     // HTMLエスケープ関数

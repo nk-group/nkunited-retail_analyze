@@ -137,12 +137,12 @@ class SalesAnalysisController extends BaseController
 
         $keyword = $this->request->getGet('keyword');
         $page = (int) ($this->request->getGet('page') ?? 1);
-        $limit = 20; // 1ページあたりの表示件数
+        $limit = 10; // 表示件数
         
         try {
             $builder = $this->manufacturerModel;
             
-            // キーワード検索
+            // キーワード検索の条件設定
             if (!empty($keyword)) {
                 $builder = $builder->groupStart()
                     ->like('manufacturer_code', $keyword)
@@ -150,14 +150,19 @@ class SalesAnalysisController extends BaseController
                     ->groupEnd();
             }
             
-            // 件数取得
+            // 検索条件に該当する総件数を取得
             $totalCount = $builder->countAllResults(false);
             
-            // データ取得
+            // データ取得（ページング対応）
             $makers = $builder
                 ->orderBy('manufacturer_code')
                 ->limit($limit, ($page - 1) * $limit)
                 ->findAll();
+
+            // ページング情報の計算
+            $totalPages = ceil($totalCount / $limit);
+            $hasNextPage = $page < $totalPages;
+            $hasPrevPage = $page > 1;
 
             return $this->response->setJSON([
                 'success' => true,
@@ -166,8 +171,13 @@ class SalesAnalysisController extends BaseController
                     'current_page' => $page,
                     'total_count' => $totalCount,
                     'per_page' => $limit,
-                    'total_pages' => ceil($totalCount / $limit)
-                ]
+                    'total_pages' => $totalPages,
+                    'has_next_page' => $hasNextPage,
+                    'has_prev_page' => $hasPrevPage,
+                    'from' => ($page - 1) * $limit + 1,
+                    'to' => min($page * $limit, $totalCount)
+                ],
+                'keyword' => $keyword
             ]);
 
         } catch (\Exception $e) {

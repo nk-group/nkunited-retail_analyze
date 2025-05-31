@@ -1,6 +1,4 @@
 <?php
-// TODO:開発完了後削除 [RT004]
-
 use CodeIgniter\Router\RouteCollection;
 
 
@@ -88,6 +86,7 @@ $routes->group('sales-analysis', function($routes) {
     
     // Ajax API: メーカー検索
     $routes->get('search-makers', 'SalesAnalysisController::searchMakers');
+
 });
 
 
