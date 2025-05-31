@@ -1,0 +1,53 @@
+/*
+ * アプリケーション共通カスタムスタイルシート
+ * (public/assets/css/style.css)
+ */
+
+/* --- 認証ページレイアウト (auth_layout.php) 用スタイル --- */
+
+/* 認証関連ページの body タグに適用する背景色 */
+body.auth-layout-background {
+    background-color: #f8f9fa; /* 例: Bootstrap の .bg-light に近い薄いグレー */
+}
+
+/* ログインフォームのカードコンテナのスタイル */
+.login-card {
+    width: 100%;
+    max-width: 400px; /* ログインカードの最大幅を指定 */
+}
+
+
+/* --- メインアプリケーションレイアウト (default.php) 用スタイル --- */
+
+/* 固定ナビゲーションバー (fixed-top) を使用する場合のメインコンテンツの上部パディング */
+/* layouts/default.php の <main> タグに .main-with-navbar クラスを適用した場合に使用されます */
+.main-with-navbar {
+  padding-top: 70px; /* 注: この値はナビゲーションバーの実際の高さによって調整が必要です。
+                         Bootstrapのデフォルトのナビゲーションバーの高さは約56pxですが、
+                         コンテンツやデザインによって変わるため、適切な値を見つけてください。 */
+}
+
+/* メニュー画面のカード内でアイコンを表示する場合のスタイル (任意) */
+/* views/menu_view.php などで使用 */
+.card-icon {
+    font-size: 3rem;        /* アイコンの基本サイズ */
+    text-align: center;     /* アイコンをカード内で水平中央に配置 */
+    margin-bottom: 0.5rem;  /* アイコンとカードタイトルの間の余白 */
+    color: #0d6efd;         /* アイコンの基本色 (例: Bootstrap の primary 色) - 適宜変更可 */
+}
+
+/* --- アプリケーション全体で共通のその他のスタイルをここに追加できます --- */
+
+/* 例: 特定のボタンのスタイルを上書きする場合 */
+/*
+.btn-custom-action {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #000;
+}
+
+.btn-custom-action:hover {
+    background-color: #e0a800;
+    border-color: #d39e00;
+}
+*/
