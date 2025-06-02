@@ -123,16 +123,23 @@ class SalesAnalysisController extends BaseController
 
         $keyword = $this->request->getGet('keyword');
         $page = (int) ($this->request->getGet('page') ?? 1);
+        $exact = $this->request->getGet('exact'); // 完全一致フラグ
         $limit = 10;
         
         try {
             $builder = $this->manufacturerModel;
             
             if (!empty($keyword)) {
-                $builder = $builder->groupStart()
-                    ->like('manufacturer_code', $keyword)
-                    ->orLike('manufacturer_name', $keyword)
-                    ->groupEnd();
+                if ($exact) {
+                    // 完全一致検索（メーカーコード入力時）
+                    $builder = $builder->where('manufacturer_code', $keyword);
+                } else {
+                    // 部分一致検索（モーダル検索時）
+                    $builder = $builder->groupStart()
+                        ->like('manufacturer_code', $keyword)
+                        ->orLike('manufacturer_name', $keyword)
+                        ->groupEnd();
+                }
             }
             
             $totalCount = $builder->countAllResults(false);
@@ -183,12 +190,19 @@ class SalesAnalysisController extends BaseController
         $manufacturerCode = $this->request->getGet('manufacturer_code');
         $keyword = $this->request->getGet('keyword');
         $page = (int) ($this->request->getGet('page') ?? 1);
-        $limit = 10;
+        $limit = 50; // 品番検索は多めに表示
         
         try {
+            if (empty($manufacturerCode)) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'success' => false,
+                    'error' => 'メーカーコードが必要です。'
+                ]);
+            }
+
             // TODO: ProductModelを作成して実装
-            // 仮データを返す
-            $products = [
+            // 現在は仮データを返す
+            $baseProducts = [
                 [
                     'manufacturer_code' => $manufacturerCode,
                     'product_number' => 'S-001',
@@ -212,21 +226,47 @@ class SalesAnalysisController extends BaseController
                     'season_code' => '2025SS',
                     'selling_price' => 2200,
                     'jan_count' => 3
+                ],
+                [
+                    'manufacturer_code' => $manufacturerCode,
+                    'product_number' => 'L-002',
+                    'product_name' => 'ロングTシャツ',
+                    'season_code' => '2025AW',
+                    'selling_price' => 2000,
+                    'jan_count' => 4
+                ],
+                [
+                    'manufacturer_code' => $manufacturerCode,
+                    'product_number' => 'P-003',
+                    'product_name' => 'パンツ',
+                    'season_code' => '2025SS',
+                    'selling_price' => 3500,
+                    'jan_count' => 5
                 ]
             ];
 
+            // キーワード検索フィルタリング
+            $filteredProducts = $baseProducts;
+            if (!empty($keyword)) {
+                $filteredProducts = array_filter($baseProducts, function($product) use ($keyword) {
+                    return strpos($product['product_number'], $keyword) !== false ||
+                           strpos($product['product_name'], $keyword) !== false;
+                });
+                $filteredProducts = array_values($filteredProducts); // インデックスを再構築
+            }
+
             return $this->response->setJSON([
                 'success' => true,
-                'data' => $products,
+                'data' => $filteredProducts,
                 'pagination' => [
                     'current_page' => 1,
-                    'total_count' => 3,
+                    'total_count' => count($filteredProducts),
                     'per_page' => $limit,
                     'total_pages' => 1,
                     'has_next_page' => false,
                     'has_prev_page' => false,
                     'from' => 1,
-                    'to' => 3
+                    'to' => count($filteredProducts)
                 ],
                 'keyword' => $keyword
             ]);
@@ -254,12 +294,48 @@ class SalesAnalysisController extends BaseController
         $productName = $this->request->getGet('product_name');
         
         try {
+            if (empty($manufacturerCode) || empty($productNumber) || empty($productName)) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'success' => false,
+                    'error' => '必要なパラメータが不足しています。'
+                ]);
+            }
+
             // TODO: ProductModelを作成して実際のJANコードを取得
-            // 仮データを返す
-            $janCodes = [
-                ['jan_code' => '4912300200055', 'size_name' => 'S'],
-                ['jan_code' => '4912300200066', 'size_name' => 'M'],
-                ['jan_code' => '4912300200077', 'size_name' => 'L']
+            // 現在は仮データを返す
+            $janCodeMap = [
+                'カットソー' => [
+                    ['jan_code' => '4912300200055', 'size_name' => 'S'],
+                    ['jan_code' => '4912300200066', 'size_name' => 'M'],
+                    ['jan_code' => '4912300200077', 'size_name' => 'L']
+                ],
+                '半袖Tシャツ' => [
+                    ['jan_code' => '4912300000011', 'size_name' => 'S'],
+                    ['jan_code' => '4912300000022', 'size_name' => 'M'],
+                    ['jan_code' => '4912300000033', 'size_name' => 'L']
+                ],
+                'ポロシャツ' => [
+                    ['jan_code' => '4912300300088', 'size_name' => 'S'],
+                    ['jan_code' => '4912300300099', 'size_name' => 'M'],
+                    ['jan_code' => '4912300300100', 'size_name' => 'L']
+                ],
+                'ロングTシャツ' => [
+                    ['jan_code' => '4912300400111', 'size_name' => 'S'],
+                    ['jan_code' => '4912300400122', 'size_name' => 'M'],
+                    ['jan_code' => '4912300400133', 'size_name' => 'L'],
+                    ['jan_code' => '4912300400144', 'size_name' => 'XL']
+                ],
+                'パンツ' => [
+                    ['jan_code' => '4912300500155', 'size_name' => 'S'],
+                    ['jan_code' => '4912300500166', 'size_name' => 'M'],
+                    ['jan_code' => '4912300500177', 'size_name' => 'L'],
+                    ['jan_code' => '4912300500188', 'size_name' => 'XL'],
+                    ['jan_code' => '4912300500199', 'size_name' => 'XXL']
+                ]
+            ];
+
+            $janCodes = $janCodeMap[$productName] ?? [
+                ['jan_code' => '4912300999999', 'size_name' => 'F']
             ];
 
             return $this->response->setJSON([
