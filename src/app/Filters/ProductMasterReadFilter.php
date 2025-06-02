@@ -54,10 +54,12 @@ class ProductMasterReadFilter implements IReadFilter
         'AM', // 在庫管理 (Excel列39)
         // AN (タグ有無) から BB (販売着地日) まではProductsテーブルへの直接のマッピング対象外
         // Excelの列番号55,56,57 はそれぞれ BC, BD, BE になります
+        'BA', // 削除予定日 (Excel列53)
+        'BB', // 削除区分 (Excel列54)
         'BC', // 初回登録日 (Excel列55)
         'BD', // 変更日付 (Excel列56)
         'BE', // 変更時間 (Excel列57)
-        // BI (備考) はProductsテーブルへの直接のマッピング対象外
+        // BF (備考) はProductsテーブルへの直接のマッピング対象外
     ];
 
     /**

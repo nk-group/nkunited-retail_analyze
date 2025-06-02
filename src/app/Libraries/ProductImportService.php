@@ -159,6 +159,8 @@ class ProductImportService extends BaseImportService
                     'purchase_type_id'              => DataTransformer::excelToIntOrNull($rowData[35] ?? null),
                     'product_classification_id'     => DataTransformer::excelToIntOrNull($rowData[36] ?? null),
                     'inventory_management_flag'     => DataTransformer::excelToIntOrNull($rowData[38] ?? null),
+                    'deletion_scheduled_date'       => DataTransformer::excelToDbDate($rowData[52] ?? null),
+                    'deletion_type'                 => DataTransformer::excelToIntOrNull($rowData[53] ?? null),
                     'initial_registration_date'     => DataTransformer::excelToDbDate($rowData[54] ?? null),
                     'last_modified_datetime'        => $lastModifiedDateTime,
                 ];
