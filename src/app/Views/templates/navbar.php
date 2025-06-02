@@ -13,15 +13,18 @@ $session = session(); // セッション情報を取得 ?>
                 </li>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle <?= (str_starts_with(uri_string(), 'sales-analysis')) ? 'active' : '' ?>" href="#" id="navbarDropdownAnalysis" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <i class="bi bi-bar-chart-line-fill"></i> 分析機能
+                        <i class="bi bi-bar-chart-line-fill"></i> 販売分析
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdownAnalysis">
-                        <li><a class="dropdown-item" href="<?= site_url('sales-analysis') ?>">商品販売分析</a></li>
-                        <li><a class="dropdown-item" href="#">顧客分析 (仮)</a></li>
+                        <li><a class="dropdown-item" href="<?= site_url('sales-analysis') ?>">分析メニュー</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="<?= site_url('sales-analysis/single-product') ?>">単品分析</a></li>
+                        <li><a class="dropdown-item disabled" href="#">カテゴリ分析 <small class="text-muted">(準備中)</small></a></li>
+                        <li><a class="dropdown-item disabled" href="#">期間比較分析 <small class="text-muted">(準備中)</small></a></li>
                     </ul>
                 </li>
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle <?= (str_starts_with(uri_string(), 'masters/import') || str_starts_with(uri_string(), 'slips/import') || str_starts_with(uri_string(), 'tasks')) ? 'active' : '' // tasks もこのグループの active 条件に追加 ?>" href="#" id="navbarDropdownImport" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle <?= (str_starts_with(uri_string(), 'masters/import') || str_starts_with(uri_string(), 'slips/import') || str_starts_with(uri_string(), 'tasks')) ? 'active' : '' ?>" href="#" id="navbarDropdownImport" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-cloud-upload-fill"></i> データ管理・取込
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdownImport">

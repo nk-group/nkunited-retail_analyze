@@ -10,8 +10,8 @@
                 <div class="card-body text-center">
                     <div class="card-icon text-primary"><i class="bi bi-graph-up-arrow"></i></div>
                     <h5 class="card-title mt-3">商品販売分析</h5>
-                    <p class="card-text">商品の販売傾向や実績を詳細に分析し、売上向上に繋がるインサイトを得ます。</p>
-                    <a href="<?= site_url('sales-analysis') ?>" class="btn btn-outline-primary stretched-link">分析を開始</a>
+                    <p class="card-text">単品分析、カテゴリ分析など、商品の販売傾向や実績を詳細に分析し、売上向上に繋がるインサイトを得ます。</p>
+                    <a href="<?= site_url('sales-analysis') ?>" class="btn btn-outline-primary stretched-link">分析メニューへ</a>
                 </div>
             </div>
         </div>
@@ -50,11 +50,14 @@
 </div>
 <?= $this->endSection() ?>
 
-<?php /* メニューページ固有のスタイルやスクリプト */ ?>
 <?= $this->section('styles') ?>
-<?php /* <link rel="stylesheet" href="<?= base_url('assets/css/menu_specific.css') ?>"> */ ?>
-<?= $this->endSection() ?>
-
-<?= $this->section('scripts') ?>
-<?php /* <script src="<?= base_url('assets/js/menu_specific.js') ?>"></script> */ ?>
+<style>
+.card-icon {
+    font-size: 3rem;
+    transition: transform 0.3s ease;
+}
+.card:hover .card-icon {
+    transform: scale(1.1);
+}
+</style>
 <?= $this->endSection() ?>

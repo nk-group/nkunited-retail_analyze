@@ -72,21 +72,32 @@ $routes->group('slips', ['filter' => 'auth'], static function ($routes) {
 });
 
 /**
- * 販売分析関連のルート設定
+ * 販売分析関連のルート設定（更新版）
  */
-$routes->group('sales-analysis', function($routes) {
-    // メイン画面（集計指示画面）
+$routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
+    // メイン画面（分析メニュー）
     $routes->get('/', 'SalesAnalysisController::index');
     
-    // 集計実行
-    $routes->post('execute', 'SalesAnalysisController::execute');
+    // 単品分析
+    $routes->group('single-product', function($routes) {
+        // 集計指示画面
+        $routes->get('/', 'SalesAnalysisController::singleProduct');
+        
+        // 集計実行
+        $routes->post('execute', 'SalesAnalysisController::executeSingleProduct');
+        
+        // 結果画面
+        $routes->get('result', 'SalesAnalysisController::singleProductResult');
+    });
     
-    // 結果画面
-    $routes->get('result', 'SalesAnalysisController::result');
-    
-    // Ajax API: メーカー検索
+    // Ajax API
     $routes->get('search-makers', 'SalesAnalysisController::searchMakers');
-
+    $routes->get('search-products', 'SalesAnalysisController::searchProducts');
+    $routes->get('get-target-products', 'SalesAnalysisController::getTargetProducts');
+    
+    // 従来のルート（互換性のため残す）
+    $routes->post('execute', 'SalesAnalysisController::execute');
+    $routes->get('result', 'SalesAnalysisController::result');
 });
 
 
