@@ -106,7 +106,8 @@ class ProductImportService extends BaseImportService
 
                 $currentRequiredErrors = [];
                 if (empty($janCode))     $currentRequiredErrors[] = "ＪＡＮ(列1)";
-                if (empty($productName)) $currentRequiredErrors[] = "品名(列6)";
+                // 品名のnullチェックは無し
+                //if (empty($productName)) $currentRequiredErrors[] = "品名(列6)";
                 
                 if (!empty($currentRequiredErrors)) {
                     $errorMessages[] = "{$currentRowNumInFile}行目: 必須項目 (" . implode(', ', $currentRequiredErrors) . ") 不足によりスキップ。JAN: '{$janCodeRaw}'";
