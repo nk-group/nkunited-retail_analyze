@@ -4,15 +4,18 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use App\Models\ManufacturerModel;
+use App\Models\ProductModel;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class SalesAnalysisController extends BaseController
 {
     protected $manufacturerModel;
+    protected $productModel;
 
     public function __construct()
     {
         $this->manufacturerModel = new ManufacturerModel();
+        $this->productModel = new ProductModel();
         helper(['form', 'url']);
     }
 
@@ -79,13 +82,35 @@ class SalesAnalysisController extends BaseController
         ];
 
         try {
-            // TODO: 単品分析サービスクラスを呼び出して集計処理を実行
+            // 事前データ検証
+            $manufacturer = $this->manufacturerModel->find($conditions['manufacturer_code']);
+            if (!$manufacturer) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', '指定されたメーカーが見つかりません。');
+            }
+
+            $productInfo = $this->productModel->getProductBasicInfo(
+                $conditions['manufacturer_code'],
+                $conditions['product_number'],
+                $conditions['product_name']
+            );
+
+            if (!$productInfo) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', '指定された商品が見つかりません。');
+            }
+
+            // TODO: 実際の単品分析サービスクラスを呼び出して集計処理を実行
             // $singleProductAnalysisService = new \App\Services\SingleProductAnalysisService();
             // $result = $singleProductAnalysisService->executeAnalysis($conditions);
             
             // 現在は仮実装
             session()->setFlashdata('success', '単品分析の集計処理を開始しました。');
             session()->setFlashdata('analysis_conditions', $conditions);
+            session()->setFlashdata('manufacturer_info', $manufacturer);
+            session()->setFlashdata('product_info', $productInfo);
             
             return redirect()->to(site_url('sales-analysis/single-product/result'));
             
@@ -93,7 +118,7 @@ class SalesAnalysisController extends BaseController
             log_message('error', '単品分析実行エラー: ' . $e->getMessage());
             return redirect()->back()
                 ->withInput()
-                ->with('error', '集計処理中にエラーが発生しました。');
+                ->with('error', '集計処理中にエラーが発生しました: ' . $e->getMessage());
         }
     }
 
@@ -103,10 +128,19 @@ class SalesAnalysisController extends BaseController
     public function singleProductResult()
     {
         $conditions = session()->getFlashdata('analysis_conditions');
+        $manufacturerInfo = session()->getFlashdata('manufacturer_info');
+        $productInfo = session()->getFlashdata('product_info');
+        
+        if (!$conditions) {
+            return redirect()->to(site_url('sales-analysis/single-product'))
+                ->with('error', '集計結果が見つかりません。再度実行してください。');
+        }
         
         $data = [
             'pageTitle' => '商品販売分析 - 単品分析 結果',
-            'conditions' => $conditions
+            'conditions' => $conditions,
+            'manufacturer_info' => $manufacturerInfo,
+            'product_info' => $productInfo
         ];
 
         return view('sales_analysis/single_product_result', $data);
@@ -163,7 +197,7 @@ class SalesAnalysisController extends BaseController
                     'total_pages' => $totalPages,
                     'has_next_page' => $hasNextPage,
                     'has_prev_page' => $hasPrevPage,
-                    'from' => ($page - 1) * $limit + 1,
+                    'from' => $totalCount > 0 ? ($page - 1) * $limit + 1 : 0,
                     'to' => min($page * $limit, $totalCount)
                 ],
                 'keyword' => $keyword
@@ -173,7 +207,7 @@ class SalesAnalysisController extends BaseController
             log_message('error', 'メーカー検索エラー: ' . $e->getMessage());
             return $this->response->setStatusCode(500)->setJSON([
                 'success' => false,
-                'error' => '検索処理中にエラーが発生しました。'
+                'error' => '検索処理中にエラーが発生しました: ' . $e->getMessage()
             ]);
         }
     }
@@ -200,82 +234,61 @@ class SalesAnalysisController extends BaseController
                 ]);
             }
 
-            // TODO: ProductModelを作成して実装
-            // 現在は仮データを返す
-            $baseProducts = [
-                [
-                    'manufacturer_code' => $manufacturerCode,
-                    'product_number' => 'S-001',
-                    'product_name' => '半袖Tシャツ',
-                    'season_code' => '2025SS',
-                    'selling_price' => 1800,
-                    'jan_count' => 3
-                ],
-                [
-                    'manufacturer_code' => $manufacturerCode,
-                    'product_number' => 'S-001',
-                    'product_name' => 'カットソー',
-                    'season_code' => '2025SS',
-                    'selling_price' => 1800,
-                    'jan_count' => 3
-                ],
-                [
-                    'manufacturer_code' => $manufacturerCode,
-                    'product_number' => 'S-001',
-                    'product_name' => 'ポロシャツ',
-                    'season_code' => '2025SS',
-                    'selling_price' => 2200,
-                    'jan_count' => 3
-                ],
-                [
-                    'manufacturer_code' => $manufacturerCode,
-                    'product_number' => 'L-002',
-                    'product_name' => 'ロングTシャツ',
-                    'season_code' => '2025AW',
-                    'selling_price' => 2000,
-                    'jan_count' => 4
-                ],
-                [
-                    'manufacturer_code' => $manufacturerCode,
-                    'product_number' => 'P-003',
-                    'product_name' => 'パンツ',
-                    'season_code' => '2025SS',
-                    'selling_price' => 3500,
-                    'jan_count' => 5
-                ]
-            ];
+            // メーカーの存在確認
+            $manufacturer = $this->manufacturerModel->find($manufacturerCode);
+            if (!$manufacturer) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'success' => false,
+                    'error' => '指定されたメーカーが見つかりません。'
+                ]);
+            }
 
-            // キーワード検索フィルタリング
-            $filteredProducts = $baseProducts;
-            if (!empty($keyword)) {
-                $filteredProducts = array_filter($baseProducts, function($product) use ($keyword) {
-                    return strpos($product['product_number'], $keyword) !== false ||
-                           strpos($product['product_name'], $keyword) !== false;
-                });
-                $filteredProducts = array_values($filteredProducts); // インデックスを再構築
+            // 品番グループを取得
+            $products = $this->productModel->getProductNumberGroups(
+                $manufacturerCode, 
+                $keyword, 
+                $limit
+            );
+
+            // データの整形
+            $formattedProducts = [];
+            foreach ($products as $product) {
+                $formattedProducts[] = [
+                    'manufacturer_code' => $product['manufacturer_code'],
+                    'product_number' => $product['product_number'],
+                    'product_name' => $product['product_name'],
+                    'season_code' => $product['season_code'] ?? '-',
+                    'selling_price' => (float) ($product['selling_price'] ?? 0),
+                    'jan_count' => (int) ($product['jan_count'] ?? 0),
+                    'min_price' => (float) ($product['min_price'] ?? 0),
+                    'max_price' => (float) ($product['max_price'] ?? 0),
+                    'earliest_deletion_date' => $product['earliest_deletion_date'],
+                    'latest_deletion_date' => $product['latest_deletion_date']
+                ];
             }
 
             return $this->response->setJSON([
                 'success' => true,
-                'data' => $filteredProducts,
+                'data' => $formattedProducts,
                 'pagination' => [
                     'current_page' => 1,
-                    'total_count' => count($filteredProducts),
+                    'total_count' => count($formattedProducts),
                     'per_page' => $limit,
                     'total_pages' => 1,
                     'has_next_page' => false,
                     'has_prev_page' => false,
-                    'from' => 1,
-                    'to' => count($filteredProducts)
+                    'from' => count($formattedProducts) > 0 ? 1 : 0,
+                    'to' => count($formattedProducts)
                 ],
-                'keyword' => $keyword
+                'keyword' => $keyword,
+                'manufacturer' => $manufacturer
             ]);
 
         } catch (\Exception $e) {
             log_message('error', '品番検索エラー: ' . $e->getMessage());
             return $this->response->setStatusCode(500)->setJSON([
                 'success' => false,
-                'error' => '検索処理中にエラーが発生しました。'
+                'error' => '検索処理中にエラーが発生しました: ' . $e->getMessage()
             ]);
         }
     }
@@ -301,53 +314,109 @@ class SalesAnalysisController extends BaseController
                 ]);
             }
 
-            // TODO: ProductModelを作成して実際のJANコードを取得
-            // 現在は仮データを返す
-            $janCodeMap = [
-                'カットソー' => [
-                    ['jan_code' => '4912300200055', 'size_name' => 'S'],
-                    ['jan_code' => '4912300200066', 'size_name' => 'M'],
-                    ['jan_code' => '4912300200077', 'size_name' => 'L']
-                ],
-                '半袖Tシャツ' => [
-                    ['jan_code' => '4912300000011', 'size_name' => 'S'],
-                    ['jan_code' => '4912300000022', 'size_name' => 'M'],
-                    ['jan_code' => '4912300000033', 'size_name' => 'L']
-                ],
-                'ポロシャツ' => [
-                    ['jan_code' => '4912300300088', 'size_name' => 'S'],
-                    ['jan_code' => '4912300300099', 'size_name' => 'M'],
-                    ['jan_code' => '4912300300100', 'size_name' => 'L']
-                ],
-                'ロングTシャツ' => [
-                    ['jan_code' => '4912300400111', 'size_name' => 'S'],
-                    ['jan_code' => '4912300400122', 'size_name' => 'M'],
-                    ['jan_code' => '4912300400133', 'size_name' => 'L'],
-                    ['jan_code' => '4912300400144', 'size_name' => 'XL']
-                ],
-                'パンツ' => [
-                    ['jan_code' => '4912300500155', 'size_name' => 'S'],
-                    ['jan_code' => '4912300500166', 'size_name' => 'M'],
-                    ['jan_code' => '4912300500177', 'size_name' => 'L'],
-                    ['jan_code' => '4912300500188', 'size_name' => 'XL'],
-                    ['jan_code' => '4912300500199', 'size_name' => 'XXL']
-                ]
-            ];
+            // 基本情報の確認
+            $productInfo = $this->productModel->getProductBasicInfo(
+                $manufacturerCode,
+                $productNumber,
+                $productName
+            );
 
-            $janCodes = $janCodeMap[$productName] ?? [
-                ['jan_code' => '4912300999999', 'size_name' => 'F']
-            ];
+            if (!$productInfo) {
+                return $this->response->setStatusCode(404)->setJSON([
+                    'success' => false,
+                    'error' => '指定された商品が見つかりません。'
+                ]);
+            }
+
+            // JANコード一覧を取得
+            $janCodes = $this->productModel->getJanCodesByGroup(
+                $manufacturerCode,
+                $productNumber,
+                $productName
+            );
+
+            if (empty($janCodes)) {
+                return $this->response->setStatusCode(404)->setJSON([
+                    'success' => false,
+                    'error' => 'この商品グループにはJANコードが登録されていません。'
+                ]);
+            }
+
+            // データの整形
+            $formattedJanCodes = [];
+            foreach ($janCodes as $jan) {
+                $formattedJanCodes[] = [
+                    'jan_code' => $jan['jan_code'],
+                    'sku_code' => $jan['sku_code'] ?? '',
+                    'size_code' => $jan['size_code'] ?? '',
+                    'size_name' => $jan['size_name'] ?? 'F',
+                    'color_code' => $jan['color_code'] ?? '',
+                    'color_name' => $jan['color_name'] ?? '-',
+                    'manufacturer_color_code' => $jan['manufacturer_color_code'] ?? '',
+                    'selling_price' => (float) ($jan['selling_price'] ?? 0),
+                    'cost_price' => (float) ($jan['cost_price'] ?? 0),
+                    'deletion_scheduled_date' => $jan['deletion_scheduled_date']
+                ];
+            }
 
             return $this->response->setJSON([
                 'success' => true,
-                'data' => $janCodes
+                'data' => $formattedJanCodes,
+                'product_info' => $productInfo,
+                'summary' => [
+                    'total_jan_count' => count($formattedJanCodes),
+                    'avg_selling_price' => array_sum(array_column($formattedJanCodes, 'selling_price')) / count($formattedJanCodes),
+                    'price_range' => [
+                        'min' => min(array_column($formattedJanCodes, 'selling_price')),
+                        'max' => max(array_column($formattedJanCodes, 'selling_price'))
+                    ]
+                ]
             ]);
 
         } catch (\Exception $e) {
             log_message('error', '集計対象商品取得エラー: ' . $e->getMessage());
             return $this->response->setStatusCode(500)->setJSON([
                 'success' => false,
-                'error' => '商品情報の取得に失敗しました。'
+                'error' => '商品情報の取得に失敗しました: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * 品番存在確認API（リアルタイムバリデーション用）
+     */
+    public function validateProductNumber()
+    {
+        if (!$this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
+        }
+
+        $manufacturerCode = $this->request->getGet('manufacturer_code');
+        $productNumber = $this->request->getGet('product_number');
+        
+        try {
+            if (empty($manufacturerCode) || empty($productNumber)) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'exists' => false,
+                    'message' => '必要なパラメータが不足しています。'
+                ]);
+            }
+
+            $exists = $this->productModel->existsProductNumber($manufacturerCode, $productNumber);
+            
+            return $this->response->setJSON([
+                'success' => true,
+                'exists' => $exists,
+                'message' => $exists ? '品番が確認されました。' : '該当する品番が見つかりません。'
+            ]);
+
+        } catch (\Exception $e) {
+            log_message('error', '品番存在確認エラー: ' . $e->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'success' => false,
+                'exists' => false,
+                'message' => 'システムエラーが発生しました。'
             ]);
         }
     }

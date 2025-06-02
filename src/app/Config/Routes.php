@@ -71,6 +71,7 @@ $routes->group('slips', ['filter' => 'auth'], static function ($routes) {
     $routes->post('import/adjustment', 'SlipImportController::processAdjustmentSlipImport', ['as' => 'adjustment_slip_import_process']);    
 });
 
+
 /**
  * 販売分析関連のルート設定（更新版）
  */
@@ -94,12 +95,12 @@ $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
     $routes->get('search-makers', 'SalesAnalysisController::searchMakers');
     $routes->get('search-products', 'SalesAnalysisController::searchProducts');
     $routes->get('get-target-products', 'SalesAnalysisController::getTargetProducts');
+    $routes->get('validate-product-number', 'SalesAnalysisController::validateProductNumber'); // 追加
     
     // 従来のルート（互換性のため残す）
     $routes->post('execute', 'SalesAnalysisController::execute');
     $routes->get('result', 'SalesAnalysisController::result');
 });
-
 
 
 // === タスク一覧表示関連 (認証フィルターで保護) ===
