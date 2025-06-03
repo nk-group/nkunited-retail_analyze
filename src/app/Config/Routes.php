@@ -28,6 +28,14 @@ $routes->get('/menu', 'Menu::index', ['filter' => 'auth']); // 'auth' フィル�
 $routes->get('/', 'Home::index');
 
 
+// === タスク一覧表示関連 (認証フィルターで保護) ===
+// グループ 'admin' を削除し、直接ルートを定義
+$routes->get('tasks', 'TaskViewController::index', [
+    'filter' => 'auth', 
+    'as' => 'task_list'
+]);
+
+
 
 // === マスタデータ取込関連 ===
 // マスタ取込画面表示 (認証フィルターで保護)
@@ -103,6 +111,7 @@ $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
 });
 
 
+
 // === タスク一覧表示関連 (認証フィルターで保護) ===
 // マスタや伝票のグループ化パターンに合わせて 'tasks' グループを作成
 // $routes->group('tasks', ['filter' => 'auth'], static function ($routes) {
@@ -111,12 +120,6 @@ $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
 //     // $routes->match(['get', 'post'], 'list', 'TaskViewController::index', ['as' => 'task_list']);
 // });
 
-// === タスク一覧表示関連 (認証フィルターで保護) ===
-// グループ 'admin' を削除し、直接ルートを定義
-$routes->get('tasks', 'TaskViewController::index', [
-    'filter' => 'auth', 
-    'as' => 'task_list'
-]);
 
 
 //$routes->get('/dbtest', 'App\Controllers\DbTest::index');

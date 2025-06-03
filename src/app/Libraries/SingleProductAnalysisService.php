@@ -155,6 +155,9 @@ class SingleProductAnalysisService
           AND jan_code IN ({$janCodesPlaceholder})
         ";
         
+        log_message('info', 'getTransferInfo SQL: ' . $sql);
+        log_message('info', 'getTransferInfo パラメータ: ' . json_encode($janCodes));
+        
         $result = $this->db->query($sql, $janCodes)->getRowArray();
         
         if (!$result || !$result['first_transfer_date']) {
@@ -167,6 +170,8 @@ class SingleProductAnalysisService
             FROM products 
             WHERE jan_code IN ({$janCodesPlaceholder})
             ";
+            
+            log_message('info', 'getTransferInfo Fallback SQL: ' . $fallbackSql);
             
             $fallbackResult = $this->db->query($fallbackSql, $janCodes)->getRowArray();
             
@@ -199,16 +204,21 @@ class SingleProductAnalysisService
             $sql = "
             SELECT 
                 SUM(purchase_quantity) as total_purchase_qty,
-                SUM(CASE WHEN purchase_quantity > 0 THEN purchase_quantity * cost_price ELSE 0 END) / 
-                SUM(CASE WHEN purchase_quantity > 0 THEN purchase_quantity ELSE 0 END) as avg_cost_price,
+                CASE 
+                    WHEN SUM(CASE WHEN purchase_quantity > 0 THEN purchase_quantity ELSE 0 END) > 0 
+                    THEN SUM(CASE WHEN purchase_quantity > 0 THEN purchase_quantity * cost_price ELSE 0 END) / 
+                         SUM(CASE WHEN purchase_quantity > 0 THEN purchase_quantity ELSE 0 END)
+                    ELSE 0 
+                END as avg_cost_price,
                 SUM(purchase_quantity * cost_price) as total_purchase_cost,
                 COUNT(*) as purchase_record_count,
-                COUNT(DISTINCT purchase_date) as purchase_date_count,
+                (SELECT COUNT(DISTINCT purchase_date) FROM purchase_slip p2 WHERE p2.jan_code IN ({$janCodesPlaceholder})) as purchase_date_count,
                 MIN(purchase_date) as first_purchase_date,
                 MAX(purchase_date) as last_purchase_date
             FROM purchase_slip
             WHERE jan_code IN ({$janCodesPlaceholder})
             ";
+            $params = array_merge($janCodes, $janCodes);
         } else {
             // 最終仕入原価法
             $sql = "
@@ -225,15 +235,19 @@ class SingleProductAnalysisService
                 (SELECT latest_cost_price FROM latest_purchase WHERE rn = 1) as avg_cost_price,
                 SUM(ps.purchase_quantity) * (SELECT latest_cost_price FROM latest_purchase WHERE rn = 1) as total_purchase_cost,
                 COUNT(*) as purchase_record_count,
-                COUNT(DISTINCT ps.purchase_date) as purchase_date_count,
+                (SELECT COUNT(DISTINCT purchase_date) FROM purchase_slip p2 WHERE p2.jan_code IN ({$janCodesPlaceholder})) as purchase_date_count,
                 MIN(ps.purchase_date) as first_purchase_date,
                 MAX(ps.purchase_date) as last_purchase_date
             FROM purchase_slip ps
             WHERE ps.jan_code IN ({$janCodesPlaceholder})
             ";
+            $params = array_merge($janCodes, $janCodes, $janCodes);
         }
         
-        $result = $this->db->query($sql, $janCodes)->getRowArray();
+        log_message('info', 'getPurchaseInfo SQL: ' . $sql);
+        log_message('info', 'getPurchaseInfo パラメータ: ' . json_encode($params));
+        
+        $result = $this->db->query($sql, $params)->getRowArray();
         
         if (!$result || $result['total_purchase_qty'] <= 0) {
             throw new SingleProductAnalysisException('仕入データが見つかりません');
@@ -293,27 +307,29 @@ class SingleProductAnalysisService
         
         $sql = "
         SELECT 
-            FLOOR(DATEDIFF(sales_date, ?)) / 7) + 1 as week_number,
-            DATE_ADD(?, INTERVAL (FLOOR(DATEDIFF(sales_date, ?)) / 7) * 7) DAY) as week_start,
-            DATE_ADD(?, INTERVAL (FLOOR(DATEDIFF(sales_date, ?)) / 7) * 7 + 6) DAY) as week_end,
+            FLOOR(DATEDIFF(day, ?, sales_date) / 7) + 1 as week_number,
+            DATEADD(day, (FLOOR(DATEDIFF(day, ?, sales_date) / 7) * 7), ?) as week_start,
+            DATEADD(day, (FLOOR(DATEDIFF(day, ?, sales_date) / 7) * 7 + 6), ?) as week_end,
             SUM(sales_quantity) as weekly_sales_qty,
             SUM(sales_amount) as weekly_sales_amount,
-            AVG(CASE WHEN sales_quantity > 0 THEN sales_unit_price END) as avg_sales_price,
+            AVG(CASE WHEN sales_quantity > 0 THEN sales_unit_price ELSE NULL END) as avg_sales_price,
             COUNT(*) as transaction_count,
-            COUNT(CASE WHEN sales_quantity < 0 THEN 1 END) as return_count,
-            SUM(CASE WHEN sales_quantity < 0 THEN sales_quantity END) as return_qty
+            SUM(CASE WHEN sales_quantity < 0 THEN 1 ELSE 0 END) as return_count,
+            SUM(CASE WHEN sales_quantity < 0 THEN sales_quantity ELSE 0 END) as return_qty
         FROM sales_slip
         WHERE jan_code IN ({$janCodesPlaceholder})
           AND sales_date >= ?
-        GROUP BY week_number, week_start, week_end
-        HAVING week_number <= ?
-        ORDER BY week_number
+        GROUP BY FLOOR(DATEDIFF(day, ?, sales_date) / 7) + 1,
+                 DATEADD(day, (FLOOR(DATEDIFF(day, ?, sales_date) / 7) * 7), ?),
+                 DATEADD(day, (FLOOR(DATEDIFF(day, ?, sales_date) / 7) * 7 + 6), ?)
+        HAVING FLOOR(DATEDIFF(day, ?, sales_date) / 7) + 1 <= ?
+        ORDER BY FLOOR(DATEDIFF(day, ?, sales_date) / 7) + 1
         ";
         
         $params = array_merge(
-            [$baseDate, $baseDate, $baseDate, $baseDate, $baseDate],
+            [$baseDate, $baseDate, $baseDate, $baseDate, $baseDate], // SELECT部用
             $janCodes,
-            [$baseDate, $this->maxWeeks]
+            [$baseDate, $baseDate, $baseDate, $baseDate, $baseDate, $baseDate, $this->maxWeeks, $baseDate] // GROUP BY, HAVING, ORDER BY用
         );
         
         $result = $this->db->query($sql, $params)->getResultArray();

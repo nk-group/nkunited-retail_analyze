@@ -12,6 +12,7 @@
     "require": {
         "php": "^8.1",
         "codeigniter4/framework": "^4.0",
+        "codeigniter4/tasks": "dev-develop",
         "phpoffice/phpspreadsheet": "^4.3"
     },
     "require-dev": {
@@ -40,5 +41,7 @@
     },
     "scripts": {
         "test": "phpunit"
-    }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }

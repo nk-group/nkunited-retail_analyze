@@ -17,7 +17,7 @@ class Tasks extends \CodeIgniter\Tasks\Config\Tasks
         // $schedule->command('tasks:process_imports')->everyMinute();
 
         // 例: 5分ごとに実行
-        $schedule->command('tasks:process_imports')->cron('*/5 * * * *');
+        $schedule->command('tasks:process_imports')->cron('*/1 * * * *');
 
         // ログ出力先を指定する場合 (任意)
         // $schedule->command('tasks:process_imports')->everyMinute()->named('ProcessImports')->appendOutputTo(WRITEPATH . 'logs/tasks.log');

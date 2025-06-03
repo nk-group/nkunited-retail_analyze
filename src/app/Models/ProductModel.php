@@ -135,7 +135,6 @@ class ProductModel extends Model
             'deletion_type',
             'product_year',
             'department_code',
-            'initial_registration_date',
             'COUNT(jan_code) as total_jan_count',
             'AVG(selling_price) as avg_selling_price',
             'MIN(selling_price) as min_selling_price',
