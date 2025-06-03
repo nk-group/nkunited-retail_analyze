@@ -109,6 +109,10 @@
         background: #d4edda;
         color: #155724;
     }
+    .negative-sales {
+        background: #ffebee;
+        color: #721c24;
+    }
     .recommendation-section {
         background: #d4edda;
         padding: 20px;
@@ -175,47 +179,78 @@
         </div>
     <?php endif; ?>
 
+    <!-- 警告メッセージ -->
+    <?php if (!empty($warnings)): ?>
+        <div class="analysis-warnings">
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>データ品質の注意事項:</strong>
+                <ul>
+                    <?php foreach ($warnings as $warning): ?>
+                        <li><i class="<?= esc($warning['icon']) ?> me-1"></i><?= esc($warning['message']) ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- ヘッダー情報 -->
     <div class="header-section">
         <h2>商品販売分析 - 単品集計表</h2>
-        <p>メーカー: サンプル商事 (0001) | 品番: S-001 | 品名: カットソー | シーズン: 2025SS</p>
-        <p>品出し日: 2025-04-01 | 経過日数: 62日 | 仕入日: 2025-03-25</p>
-        <p>廃盤予定日: 2025-07-31 | 仕入単価: ¥1,500 | 定価: ¥1,800</p>
+        <p>メーカー: <?= esc($formatted_result['header_info']['manufacturer_name']) ?> (<?= esc($formatted_result['header_info']['manufacturer_code']) ?>) | 
+           品番: <?= esc($formatted_result['header_info']['product_number']) ?> | 
+           品名: <?= esc($formatted_result['header_info']['product_name']) ?> | 
+           シーズン: <?= esc($formatted_result['header_info']['season_code']) ?></p>
+        <p>品出し日: <?= esc($formatted_result['header_info']['first_transfer_date']) ?> 
+           <?php if ($formatted_result['header_info']['is_fallback_date']): ?>
+               <span class="badge bg-warning">※商品登録日を使用</span>
+           <?php endif; ?> | 
+           経過日数: <?= esc($formatted_result['header_info']['days_since_transfer']) ?>日 | 
+           仕入単価: ¥<?= number_format($formatted_result['header_info']['avg_cost_price']) ?></p>
+        <p>定価: ¥<?= number_format($formatted_result['header_info']['selling_price']) ?>
+           <?php if ($formatted_result['header_info']['deletion_scheduled_date']): ?>
+               | 廃盤予定日: <?= esc($formatted_result['header_info']['deletion_scheduled_date']) ?>
+           <?php endif; ?>
+        </p>
     </div>
 
     <!-- サマリー情報 -->
     <div class="summary-section">
         <div class="summary-card">
             <h4>仕入原価合計</h4>
-            <div class="value">¥180,000</div>
+            <div class="value">¥<?= number_format($formatted_result['summary_info']['total_purchase_cost']) ?></div>
         </div>
         <div class="summary-card">
             <h4>売上合計</h4>
-            <div class="value">¥195,600</div>
+            <div class="value">¥<?= number_format($formatted_result['summary_info']['total_sales_amount']) ?></div>
         </div>
         <div class="summary-card">
             <h4>粗利合計</h4>
-            <div class="value recovery-rate">¥15,600</div>
+            <div class="value <?= $formatted_result['summary_info']['total_gross_profit'] >= 0 ? 'recovery-rate' : 'recovery-rate danger' ?>">
+                ¥<?= number_format($formatted_result['summary_info']['total_gross_profit']) ?>
+            </div>
         </div>
         <div class="summary-card">
             <h4>原価回収率</h4>
-            <div class="value recovery-rate">108.7%</div>
+            <div class="value <?= $formatted_result['summary_info']['recovery_rate'] >= 100 ? 'recovery-rate' : ($formatted_result['summary_info']['recovery_rate'] >= 70 ? 'recovery-rate warning' : 'recovery-rate danger') ?>">
+                <?= number_format($formatted_result['summary_info']['recovery_rate'], 1) ?>%
+            </div>
         </div>
         <div class="summary-card">
             <h4>残在庫数</h4>
-            <div class="value">12個</div>
+            <div class="value"><?= number_format($formatted_result['summary_info']['current_stock_qty']) ?>個</div>
         </div>
         <div class="summary-card">
             <h4>残在庫原価</h4>
-            <div class="value">¥18,000</div>
+            <div class="value">¥<?= number_format($formatted_result['summary_info']['current_stock_value']) ?></div>
         </div>
         <div class="summary-card">
             <h4>総販売数</h4>
-            <div class="value">108個</div>
+            <div class="value"><?= number_format($formatted_result['summary_info']['total_sales_qty']) ?>個</div>
         </div>
         <div class="summary-card">
             <h4>定価</h4>
-            <div class="value">¥1,800</div>
+            <div class="value">¥<?= number_format($formatted_result['summary_info']['selling_price']) ?></div>
         </div>
     </div>
 
@@ -238,102 +273,28 @@
                 </tr>
             </thead>
             <tbody>
-                <tr class="best-seller">
-                    <td>1週目</td>
-                    <td class="text-left">04/01-04/07</td>
-                    <td>32</td>
-                    <td>¥1,800</td>
-                    <td>¥57,600</td>
-                    <td>¥9,600</td>
-                    <td>32</td>
-                    <td>¥9,600</td>
-                    <td class="recovery-rate">53.3%</td>
-                    <td class="text-left">定価販売</td>
-                </tr>
-                <tr>
-                    <td>2週目</td>
-                    <td class="text-left">04/08-04/14</td>
-                    <td>28</td>
-                    <td>¥1,800</td>
-                    <td>¥50,400</td>
-                    <td>¥8,400</td>
-                    <td>60</td>
-                    <td>¥18,000</td>
-                    <td class="recovery-rate">100.0%</td>
-                    <td class="text-left">原価回収達成</td>
-                </tr>
-                <tr>
-                    <td>3週目</td>
-                    <td class="text-left">04/15-04/21</td>
-                    <td>18</td>
-                    <td>¥1,800</td>
-                    <td>¥32,400</td>
-                    <td>¥5,400</td>
-                    <td>78</td>
-                    <td>¥23,400</td>
-                    <td class="recovery-rate">113.0%</td>
-                    <td class="text-left">売れ行き鈍化</td>
-                </tr>
-                <tr class="price-change">
-                    <td>4週目</td>
-                    <td class="text-left">04/22-04/28</td>
-                    <td>15</td>
-                    <td>¥1,440</td>
-                    <td>¥21,600</td>
-                    <td>¥-900</td>
-                    <td>93</td>
-                    <td>¥22,500</td>
-                    <td class="recovery-rate">112.5%</td>
-                    <td class="text-left">20%値引開始</td>
-                </tr>
-                <tr class="price-change">
-                    <td>5週目</td>
-                    <td class="text-left">04/29-05/05</td>
-                    <td>12</td>
-                    <td>¥1,200</td>
-                    <td>¥14,400</td>
-                    <td>¥-3,600</td>
-                    <td>105</td>
-                    <td>¥18,900</td>
-                    <td class="recovery-rate">110.5%</td>
-                    <td class="text-left">33%値引</td>
-                </tr>
-                <tr>
-                    <td>6週目</td>
-                    <td class="text-left">05/06-05/12</td>
-                    <td>3</td>
-                    <td>¥1,200</td>
-                    <td>¥3,600</td>
-                    <td>¥-900</td>
-                    <td>108</td>
-                    <td>¥18,000</td>
-                    <td class="recovery-rate">110.0%</td>
-                    <td class="text-left">売れ行き低迷</td>
-                </tr>
-                <tr>
-                    <td>7週目</td>
-                    <td class="text-left">05/13-05/19</td>
-                    <td>0</td>
-                    <td>-</td>
-                    <td>¥0</td>
-                    <td>¥0</td>
-                    <td>108</td>
-                    <td>¥18,000</td>
-                    <td class="recovery-rate">110.0%</td>
-                    <td class="text-left">販売停滞</td>
-                </tr>
-                <tr>
-                    <td>8週目</td>
-                    <td class="text-left">05/20-05/26</td>
-                    <td>0</td>
-                    <td>-</td>
-                    <td>¥0</td>
-                    <td>¥0</td>
-                    <td>108</td>
-                    <td>¥18,000</td>
-                    <td class="recovery-rate">110.0%</td>
-                    <td class="text-left">在庫処分検討</td>
-                </tr>
+                <?php if (!empty($formatted_result['weekly_data'])): ?>
+                    <?php foreach ($formatted_result['weekly_data'] as $week): ?>
+                        <tr class="<?= $week['has_returns'] ? 'negative-sales' : ($week['week_number'] <= 2 ? 'best-seller' : ($week['avg_price'] < $formatted_result['summary_info']['selling_price'] * 0.95 ? 'price-change' : '')) ?>">
+                            <td><?= $week['week_number'] ?>週目</td>
+                            <td class="text-left"><?= esc($week['period']) ?></td>
+                            <td><?= number_format($week['sales_qty']) ?></td>
+                            <td><?= $week['avg_price'] > 0 ? '¥' . number_format($week['avg_price']) : '-' ?></td>
+                            <td>¥<?= number_format($week['sales_amount']) ?></td>
+                            <td class="<?= $week['gross_profit'] >= 0 ? '' : 'text-danger' ?>">¥<?= number_format($week['gross_profit']) ?></td>
+                            <td><?= number_format($week['cumulative_sales']) ?></td>
+                            <td class="<?= $week['cumulative_profit'] >= 0 ? '' : 'text-danger' ?>">¥<?= number_format($week['cumulative_profit']) ?></td>
+                            <td class="<?= $week['recovery_rate'] >= 100 ? 'recovery-rate' : ($week['recovery_rate'] >= 70 ? 'recovery-rate warning' : 'recovery-rate danger') ?>">
+                                <?= number_format($week['recovery_rate'], 1) ?>%
+                            </td>
+                            <td class="text-left"><?= esc($week['remarks']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="10" class="text-center text-muted">販売データがありません</td>
+                    </tr>
+                <?php endif; ?>
             </tbody>
         </table>
     </div>
@@ -353,40 +314,34 @@
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>¥1,800</td>
-                    <td>78</td>
-                    <td>¥140,400</td>
-                    <td>72.2%</td>
-                    <td>0%</td>
-                    <td class="text-left">04/01-04/21</td>
-                </tr>
-                <tr class="price-change">
-                    <td>¥1,440</td>
-                    <td>15</td>
-                    <td>¥21,600</td>
-                    <td>13.9%</td>
-                    <td>20%</td>
-                    <td class="text-left">04/22-04/28</td>
-                </tr>
-                <tr class="price-change">
-                    <td>¥1,200</td>
-                    <td>15</td>
-                    <td>¥18,000</td>
-                    <td>13.9%</td>
-                    <td>33%</td>
-                    <td class="text-left">04/29-05/12</td>
-                </tr>
+                <?php if (!empty($formatted_result['price_breakdown'])): ?>
+                    <?php foreach ($formatted_result['price_breakdown'] as $price): ?>
+                        <tr class="<?= $price['discount_rate'] > 0 ? 'price-change' : '' ?>">
+                            <td>¥<?= number_format($price['price']) ?></td>
+                            <td><?= number_format($price['quantity']) ?></td>
+                            <td>¥<?= number_format($price['amount']) ?></td>
+                            <td><?= number_format($price['ratio'], 1) ?>%</td>
+                            <td><?= number_format($price['discount_rate'], 0) ?>%</td>
+                            <td class="text-left"><?= esc($price['period']) ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">販売データがありません</td>
+                    </tr>
+                <?php endif; ?>
             </tbody>
         </table>
     </div>
 
     <!-- 推奨アクション -->
-    <div class="recommendation-section">
-        <p><strong><i class="bi bi-check-circle me-2"></i>判定: 在庫処分実行可能</strong></p>
-        <p><strong>理由:</strong> 粗利が仕入金額を超過（¥15,600 > ¥0）、2週目で原価回収率100%達成</p>
-        <p><strong>推奨アクション:</strong> 残在庫12個の早期処分を実行。50%値引きでも利益確保可能</p>
-        <p><strong>廃盤まで:</strong> あと59日（7月31日まで）</p>
+    <div class="recommendation-section <?= $formatted_result['recommendation']['status_class'] ?>">
+        <p><strong><i class="bi bi-<?= $formatted_result['recommendation']['disposal_possible'] ? 'check-circle' : 'exclamation-triangle' ?> me-2"></i>判定: <?= esc($formatted_result['recommendation']['status_text']) ?></strong></p>
+        <p><strong>詳細:</strong> <?= esc($formatted_result['recommendation']['message']) ?></p>
+        <p><strong>推奨アクション:</strong> <?= esc($formatted_result['recommendation']['action']) ?></p>
+        <?php if ($formatted_result['recommendation']['days_to_disposal']): ?>
+            <p><strong>廃盤まで:</strong> あと<?= number_format($formatted_result['recommendation']['days_to_disposal']) ?>日</p>
+        <?php endif; ?>
     </div>
 
     <!-- 操作ボタン -->
@@ -397,7 +352,22 @@
         <a href="<?= site_url('sales-analysis') ?>" class="btn btn-outline-secondary btn-lg ms-3">
             <i class="bi bi-arrow-left me-2"></i>分析メニューに戻る
         </a>
+        <?php if (!empty($formatted_result['weekly_data'])): ?>
+            <button type="button" class="btn btn-outline-info btn-lg ms-3" onclick="window.print()">
+                <i class="bi bi-printer me-2"></i>印刷
+            </button>
+        <?php endif; ?>
     </div>
+
+    <!-- デバッグ情報（開発時のみ） -->
+    <?php if (ENVIRONMENT === 'development' && !empty($execution_time)): ?>
+        <div class="mt-4 p-3 bg-light border rounded">
+            <small class="text-muted">
+                <i class="bi bi-clock me-1"></i>実行時間: <?= number_format($execution_time, 3) ?>秒 | 
+                <i class="bi bi-calendar me-1"></i>集計日時: <?= esc($analysis_result['analysis_date'] ?? date('Y-m-d H:i:s')) ?>
+            </small>
+        </div>
+    <?php endif; ?>
 </div>
 <?= $this->endSection() ?>
 
@@ -405,8 +375,9 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     console.log('単品分析結果画面が読み込まれました');
+    console.log('実行時間: <?= $execution_time ?? 0 ?>秒');
     
-    // 今後、データの動的読み込みやチャート表示などを実装予定
+    // 将来的な拡張: データの動的読み込みやチャート表示などを実装予定
 });
 </script>
 <?= $this->endSection() ?>

@@ -5,17 +5,21 @@ namespace App\Controllers;
 use App\Controllers\BaseController;
 use App\Models\ManufacturerModel;
 use App\Models\ProductModel;
+use App\Libraries\SingleProductAnalysisService;
+use App\Libraries\SingleProductAnalysisException;
 use CodeIgniter\HTTP\ResponseInterface;
 
 class SalesAnalysisController extends BaseController
 {
     protected $manufacturerModel;
     protected $productModel;
+    protected $analysisService;
 
     public function __construct()
     {
         $this->manufacturerModel = new ManufacturerModel();
         $this->productModel = new ProductModel();
+        $this->analysisService = new SingleProductAnalysisService();
         helper(['form', 'url']);
     }
 
@@ -82,43 +86,38 @@ class SalesAnalysisController extends BaseController
         ];
 
         try {
-            // 事前データ検証
-            $manufacturer = $this->manufacturerModel->find($conditions['manufacturer_code']);
-            if (!$manufacturer) {
-                return redirect()->back()
-                    ->withInput()
-                    ->with('error', '指定されたメーカーが見つかりません。');
-            }
-
-            $productInfo = $this->productModel->getProductBasicInfo(
-                $conditions['manufacturer_code'],
-                $conditions['product_number'],
-                $conditions['product_name']
-            );
-
-            if (!$productInfo) {
-                return redirect()->back()
-                    ->withInput()
-                    ->with('error', '指定された商品が見つかりません。');
-            }
-
-            // TODO: 実際の単品分析サービスクラスを呼び出して集計処理を実行
-            // $singleProductAnalysisService = new \App\Services\SingleProductAnalysisService();
-            // $result = $singleProductAnalysisService->executeAnalysis($conditions);
+            log_message('info', '単品分析実行開始: ' . json_encode($conditions));
             
-            // 現在は仮実装
-            session()->setFlashdata('success', '単品分析の集計処理を開始しました。');
-            session()->setFlashdata('analysis_conditions', $conditions);
-            session()->setFlashdata('manufacturer_info', $manufacturer);
-            session()->setFlashdata('product_info', $productInfo);
+            // 原価計算方式の設定（将来的に画面から選択可能にする）
+            $costMethod = $this->request->getPost('cost_method') ?? 'average';
+            $this->analysisService->setCostMethod($costMethod);
+            
+            // 単品分析サービスの実行
+            $analysisResult = $this->analysisService->executeAnalysis($conditions);
+            
+            // 成功時の処理
+            log_message('info', '単品分析実行完了: 実行時間=' . $analysisResult['execution_time'] . '秒');
+            
+            // セッションに結果データを保存
+            $session = session();
+            $session->setFlashdata('analysis_result', $analysisResult);
+            $session->setFlashdata('success', '単品分析が完了しました。');
             
             return redirect()->to(site_url('sales-analysis/single-product/result'));
             
-        } catch (\Exception $e) {
-            log_message('error', '単品分析実行エラー: ' . $e->getMessage());
+        } catch (SingleProductAnalysisException $e) {
+            // 分析固有のエラー
+            log_message('error', '単品分析エラー: ' . $e->getMessage());
             return redirect()->back()
                 ->withInput()
-                ->with('error', '集計処理中にエラーが発生しました: ' . $e->getMessage());
+                ->with('error', $e->getMessage());
+                
+        } catch (\Exception $e) {
+            // 予期しないエラー
+            log_message('error', '単品分析予期しないエラー: ' . $e->getMessage());
+            return redirect()->back()
+                ->withInput()
+                ->with('error', '集計処理中に予期しないエラーが発生しました。システム管理者にお問い合わせください。');
         }
     }
 
@@ -127,23 +126,255 @@ class SalesAnalysisController extends BaseController
      */
     public function singleProductResult()
     {
-        $conditions = session()->getFlashdata('analysis_conditions');
-        $manufacturerInfo = session()->getFlashdata('manufacturer_info');
-        $productInfo = session()->getFlashdata('product_info');
+        $session = session();
+        $analysisResult = $session->getFlashdata('analysis_result');
         
-        if (!$conditions) {
+        if (!$analysisResult) {
             return redirect()->to(site_url('sales-analysis/single-product'))
                 ->with('error', '集計結果が見つかりません。再度実行してください。');
         }
         
+        // 結果データの整形
+        $formattedResult = $this->formatAnalysisResult($analysisResult);
+        
         $data = [
             'pageTitle' => '商品販売分析 - 単品分析 結果',
-            'conditions' => $conditions,
-            'manufacturer_info' => $manufacturerInfo,
-            'product_info' => $productInfo
+            'analysis_result' => $analysisResult,
+            'formatted_result' => $formattedResult,
+            'warnings' => $analysisResult['warnings'] ?? [],
+            'execution_time' => $analysisResult['execution_time'] ?? 0
         ];
 
         return view('sales_analysis/single_product_result', $data);
+    }
+
+    /**
+     * 分析結果を画面表示用に整形
+     */
+    private function formatAnalysisResult(array $analysisResult): array
+    {
+        $basicInfo = $analysisResult['basic_info'];
+        $weeklyAnalysis = $analysisResult['weekly_analysis'];
+        $currentStock = $analysisResult['current_stock'];
+        $recommendation = $analysisResult['recommendation'];
+        $purchaseInfo = $analysisResult['purchase_info'];
+        $transferInfo = $analysisResult['transfer_info'];
+        
+        // ヘッダー情報の整形
+        $headerInfo = [
+            'manufacturer_name' => $basicInfo['manufacturer']['manufacturer_name'],
+            'manufacturer_code' => $basicInfo['manufacturer']['manufacturer_code'],
+            'product_number' => $basicInfo['product_info']['product_number'],
+            'product_name' => $basicInfo['product_info']['product_name'],
+            'season_code' => $basicInfo['product_info']['season_code'] ?? '-',
+            'first_transfer_date' => $transferInfo['first_transfer_date'],
+            'days_since_transfer' => $this->calculateDaysSince($transferInfo['first_transfer_date']),
+            'deletion_scheduled_date' => $basicInfo['product_info']['deletion_scheduled_date'] ?? null,
+            'selling_price' => $basicInfo['product_info']['selling_price'],
+            'avg_cost_price' => $purchaseInfo['avg_cost_price'],
+            'is_fallback_date' => $transferInfo['is_fallback']
+        ];
+        
+        // サマリー情報の整形
+        $lastWeek = !empty($weeklyAnalysis) ? end($weeklyAnalysis) : null;
+        $summaryInfo = [
+            'total_purchase_cost' => $purchaseInfo['total_purchase_cost'],
+            'total_sales_amount' => $lastWeek['cumulative_sales_amount'] ?? 0,
+            'total_gross_profit' => $lastWeek['cumulative_gross_profit'] ?? 0,
+            'recovery_rate' => $lastWeek['recovery_rate'] ?? 0,
+            'current_stock_qty' => $currentStock['current_stock_qty'],
+            'current_stock_value' => $currentStock['current_stock_value'],
+            'total_sales_qty' => $lastWeek['cumulative_sales_qty'] ?? 0,
+            'selling_price' => $basicInfo['product_info']['selling_price']
+        ];
+        
+        // 週別データの整形（表示用）
+        $formattedWeeklyData = [];
+        foreach ($weeklyAnalysis as $week) {
+            $formattedWeeklyData[] = [
+                'week_number' => $week['week_number'],
+                'period' => date('m/d', strtotime($week['week_start'])) . '-' . date('m/d', strtotime($week['week_end'])),
+                'sales_qty' => $week['weekly_sales_qty'],
+                'avg_price' => $week['avg_sales_price'],
+                'sales_amount' => $week['weekly_sales_amount'],
+                'gross_profit' => $week['weekly_gross_profit'],
+                'cumulative_sales' => $week['cumulative_sales_qty'],
+                'cumulative_profit' => $week['cumulative_gross_profit'],
+                'recovery_rate' => $week['recovery_rate'],
+                'remarks' => $this->generateWeekRemarks($week, $basicInfo['product_info']['selling_price']),
+                'has_returns' => $week['has_returns'],
+                'return_qty' => $week['return_qty']
+            ];
+        }
+        
+        // 売価別販売状況の生成（簡易版）
+        $priceBreakdown = $this->generatePriceBreakdown($weeklyAnalysis, $basicInfo['product_info']['selling_price']);
+        
+        // 推奨アクションの整形
+        $formattedRecommendation = [
+            'status' => $recommendation['status'],
+            'status_text' => $this->getStatusText($recommendation['status']),
+            'status_class' => $this->getStatusClass($recommendation['status']),
+            'message' => $recommendation['message'],
+            'action' => $recommendation['action'],
+            'days_to_disposal' => $recommendation['days_to_disposal'],
+            'disposal_possible' => $recommendation['disposal_possible'],
+            'recovery_achieved' => $recommendation['recovery_achieved']
+        ];
+        
+        return [
+            'header_info' => $headerInfo,
+            'summary_info' => $summaryInfo,
+            'weekly_data' => $formattedWeeklyData,
+            'price_breakdown' => $priceBreakdown,
+            'recommendation' => $formattedRecommendation
+        ];
+    }
+
+    /**
+     * 経過日数計算
+     */
+    private function calculateDaysSince(string $date): int
+    {
+        return (int)((time() - strtotime($date)) / 86400);
+    }
+
+    /**
+     * 週別備考の生成
+     */
+    private function generateWeekRemarks(array $week, float $sellingPrice): string
+    {
+        $remarks = [];
+        
+        // 価格変動の検出
+        if ($week['avg_sales_price'] < $sellingPrice * 0.95) {
+            $discountRate = round((1 - $week['avg_sales_price'] / $sellingPrice) * 100);
+            $remarks[] = "{$discountRate}%値引";
+        } elseif ($week['avg_sales_price'] >= $sellingPrice * 0.95) {
+            $remarks[] = '定価販売';
+        }
+        
+        // 回収率の節目
+        if ($week['recovery_rate'] >= 100) {
+            $remarks[] = '原価回収達成';
+        }
+        
+        // 返品発生
+        if ($week['has_returns']) {
+            $remarks[] = '返品発生';
+        }
+        
+        // 売れ行き状況
+        if ($week['weekly_sales_qty'] <= 0) {
+            $remarks[] = '販売停滞';
+        }
+        
+        return implode('、', $remarks) ?: '-';
+    }
+
+    /**
+     * 売価別販売状況の生成（簡易版）
+     */
+    private function generatePriceBreakdown(array $weeklyAnalysis, float $sellingPrice): array
+    {
+        $priceGroups = [];
+        $totalSales = 0;
+        $totalAmount = 0;
+        
+        foreach ($weeklyAnalysis as $week) {
+            $totalSales += $week['weekly_sales_qty'];
+            $totalAmount += $week['weekly_sales_amount'];
+            
+            $priceKey = number_format($week['avg_sales_price'], 0);
+            
+            if (!isset($priceGroups[$priceKey])) {
+                $priceGroups[$priceKey] = [
+                    'price' => $week['avg_sales_price'],
+                    'quantity' => 0,
+                    'amount' => 0,
+                    'weeks' => []
+                ];
+            }
+            
+            $priceGroups[$priceKey]['quantity'] += $week['weekly_sales_qty'];
+            $priceGroups[$priceKey]['amount'] += $week['weekly_sales_amount'];
+            $priceGroups[$priceKey]['weeks'][] = $week['week_number'];
+        }
+        
+        // 構成比とその他の計算
+        $formattedPriceBreakdown = [];
+        foreach ($priceGroups as $group) {
+            $ratio = $totalSales > 0 ? ($group['quantity'] / $totalSales) * 100 : 0;
+            $discountRate = $sellingPrice > 0 ? (1 - $group['price'] / $sellingPrice) * 100 : 0;
+            
+            $formattedPriceBreakdown[] = [
+                'price' => $group['price'],
+                'quantity' => $group['quantity'],
+                'amount' => $group['amount'],
+                'ratio' => $ratio,
+                'discount_rate' => max(0, $discountRate),
+                'period' => $this->formatWeeksPeriod($group['weeks'])
+            ];
+        }
+        
+        // 価格順でソート（高価格から）
+        usort($formattedPriceBreakdown, function($a, $b) {
+            return $b['price'] <=> $a['price'];
+        });
+        
+        return $formattedPriceBreakdown;
+    }
+
+    /**
+     * 週数を期間表現に変換
+     */
+    private function formatWeeksPeriod(array $weeks): string
+    {
+        if (empty($weeks)) return '-';
+        
+        sort($weeks);
+        $min = min($weeks);
+        $max = max($weeks);
+        
+        if ($min === $max) {
+            return "{$min}週目";
+        } else {
+            return "{$min}-{$max}週目";
+        }
+    }
+
+    /**
+     * ステータステキストの取得
+     */
+    private function getStatusText(string $status): string
+    {
+        $statusMap = [
+            'disposal_possible' => '在庫処分実行可能',
+            'recovery_achieved' => '原価回収達成',
+            'disposal_consideration' => '処分検討',
+            'discount_recommended' => '値引き推奨',
+            'continue_selling' => '定価維持',
+            'no_data' => 'データ不足'
+        ];
+        
+        return $statusMap[$status] ?? '状態不明';
+    }
+
+    /**
+     * ステータスCSSクラスの取得
+     */
+    private function getStatusClass(string $status): string
+    {
+        $classMap = [
+            'disposal_possible' => 'success',
+            'recovery_achieved' => 'info', 
+            'disposal_consideration' => 'warning',
+            'discount_recommended' => 'warning',
+            'continue_selling' => 'primary',
+            'no_data' => 'secondary'
+        ];
+        
+        return $classMap[$status] ?? 'secondary';
     }
 
     /**
