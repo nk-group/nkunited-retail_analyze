@@ -9,20 +9,63 @@ use CodeIgniter\Database\ConnectionInterface;
 /**
  * 単品販売分析サービス
  * 
- * 指定された商品グループの販売分析を実行し、
- * 週別販売推移、原価回収率、在庫処分判定などを提供する
+ * 指定された商品グループの販売分析を実行し、週別販売推移、原価回収率、
+ * 在庫処分判定などを提供する。品出し日を基準とした週別集計により、
+ * 商品の販売状況を詳細に分析し、値引きや処分のタイミングを判定する。
+ * 
+ * @package App\Libraries
+ * @author  NK Inter y.ueda
+ * @version 1.0
  */
 class SingleProductAnalysisService
 {
+    /**
+     * データベース接続インスタンス
+     * 
+     * @var \CodeIgniter\Database\BaseConnection
+     */
     protected $db;
+    
+    /**
+     * 商品モデルインスタンス
+     * 
+     * @var ProductModel
+     */
     protected $productModel;
+    
+    /**
+     * メーカーモデルインスタンス
+     * 
+     * @var ManufacturerModel
+     */
     protected $manufacturerModel;
     
-    // 設定値
-    protected $costMethod = 'average';  // 'average' | 'latest'
-    protected $maxWeeks = 50;           // 最大集計週数
-    protected $timeout = 30;            // 処理タイムアウト（秒）
+    /**
+     * 原価計算方式
+     * 
+     * @var string 'average'（平均原価法）または 'latest'（最終仕入原価法）
+     */
+    protected $costMethod = 'average';
     
+    /**
+     * 最大集計週数制限
+     * 
+     * @var int パフォーマンス保護のための週数上限
+     */
+    protected $maxWeeks = 50;
+    
+    /**
+     * 処理タイムアウト（秒）
+     * 
+     * @var int 長時間処理の防止
+     */
+    protected $timeout = 30;
+    
+    /**
+     * コンストラクタ
+     * 
+     * データベース接続とモデルインスタンスを初期化する。
+     */
     public function __construct()
     {
         $this->db = \Config\Database::connect();
@@ -33,9 +76,25 @@ class SingleProductAnalysisService
     /**
      * 単品分析を実行
      * 
-     * @param array $conditions 分析条件
-     * @return array 分析結果
-     * @throws SingleProductAnalysisException
+     * 指定された分析条件に基づいて商品の販売分析を実行する。
+     * 処理の流れ：基本情報取得→品出し日特定→仕入情報集計→週別販売集計
+     * →累計計算→現在庫算出→推奨アクション判定→警告情報収集
+     * 
+     * @param array $conditions 分析条件配列
+     *                         - manufacturer_code: メーカーコード
+     *                         - product_number: 品番
+     *                         - product_name: 品番名
+     * @return array 分析結果配列
+     *               - basic_info: 基本情報（商品・メーカー・JANコード）
+     *               - transfer_info: 品出し日情報
+     *               - purchase_info: 仕入情報
+     *               - weekly_analysis: 週別分析データ
+     *               - current_stock: 現在庫情報
+     *               - recommendation: 推奨アクション
+     *               - warnings: 警告情報
+     *               - execution_time: 実行時間
+     *               - analysis_date: 分析実行日時
+     * @throws SingleProductAnalysisException 分析処理中にエラーが発生した場合
      */
     public function executeAnalysis(array $conditions): array
     {
@@ -95,6 +154,20 @@ class SingleProductAnalysisService
     
     /**
      * 基本情報取得（商品情報、JANコード一覧、メーカー情報）
+     * 
+     * 分析対象商品の基本情報を取得し、存在確認を行う。
+     * メーカー情報、商品基本情報、JANコード一覧を取得して
+     * 後続処理で使用する基本データを準備する。
+     * 
+     * @param array $conditions 分析条件配列
+     * @return array 基本情報配列
+     *               - conditions: 入力条件
+     *               - manufacturer: メーカー情報
+     *               - product_info: 商品基本情報
+     *               - jan_codes: JANコード配列
+     *               - jan_details: JANコード詳細情報
+     *               - total_sku_count: SKU総数
+     * @throws SingleProductAnalysisException メーカーまたは商品が見つからない場合
      */
     protected function getBasicInfo(array $conditions): array
     {
@@ -138,6 +211,18 @@ class SingleProductAnalysisService
     
     /**
      * 品出し日情報取得（DC→店舗の最初受入日）
+     * 
+     * 配送センター（DC）から店舗への最初の受入日を品出し日として特定する。
+     * 品出し日が見つからない場合は商品登録日を代替として使用し、
+     * 代替使用フラグを設定して後続処理で警告表示を行う。
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @return array 品出し日情報配列
+     *               - first_transfer_date: 品出し日
+     *               - transfer_date_count: 移動日数
+     *               - total_transfer_records: 移動レコード総数
+     *               - is_fallback: 代替日使用フラグ
+     *               - fallback_reason: 代替理由（代替使用時のみ）
      */
     protected function getTransferInfo(array $janCodes): array
     {
@@ -194,13 +279,31 @@ class SingleProductAnalysisService
     
     /**
      * 仕入情報取得（総仕入数量、平均原価、総仕入金額）
+     * 
+     * 指定されたJANコード群の仕入情報を集計し、原価計算方式に応じて
+     * 平均原価または最終仕入原価を用いて総仕入原価を算出する。
+     * SQL Serverの制約を回避するため、purchase_date_countは別クエリで取得。
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @param string $baseDate 基準日（品出し日）
+     * @return array 仕入情報配列
+     *               - total_purchase_qty: 総仕入数量
+     *               - avg_cost_price: 平均原価
+     *               - total_purchase_cost: 総仕入金額
+     *               - purchase_record_count: 仕入レコード数
+     *               - purchase_date_count: 仕入日数
+     *               - first_purchase_date: 最初仕入日
+     *               - last_purchase_date: 最終仕入日
+     *               - cost_method: 原価計算方式
+     *               - pre_purchase_sales: 仕入前売上情報
+     * @throws SingleProductAnalysisException 仕入データが見つからない場合
      */
     protected function getPurchaseInfo(array $janCodes, string $baseDate): array
     {
         $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
         
         if ($this->costMethod === 'average') {
-            // 平均原価法
+            // 平均原価法 - メインクエリ（サブクエリのpurchase_date_countを除く）
             $sql = "
             SELECT 
                 SUM(purchase_quantity) as total_purchase_qty,
@@ -212,13 +315,12 @@ class SingleProductAnalysisService
                 END as avg_cost_price,
                 SUM(purchase_quantity * cost_price) as total_purchase_cost,
                 COUNT(*) as purchase_record_count,
-                (SELECT COUNT(DISTINCT purchase_date) FROM purchase_slip p2 WHERE p2.jan_code IN ({$janCodesPlaceholder})) as purchase_date_count,
                 MIN(purchase_date) as first_purchase_date,
                 MAX(purchase_date) as last_purchase_date
             FROM purchase_slip
             WHERE jan_code IN ({$janCodesPlaceholder})
             ";
-            $params = array_merge($janCodes, $janCodes);
+            $params = $janCodes;
         } else {
             // 最終仕入原価法
             $sql = "
@@ -235,13 +337,12 @@ class SingleProductAnalysisService
                 (SELECT latest_cost_price FROM latest_purchase WHERE rn = 1) as avg_cost_price,
                 SUM(ps.purchase_quantity) * (SELECT latest_cost_price FROM latest_purchase WHERE rn = 1) as total_purchase_cost,
                 COUNT(*) as purchase_record_count,
-                (SELECT COUNT(DISTINCT purchase_date) FROM purchase_slip p2 WHERE p2.jan_code IN ({$janCodesPlaceholder})) as purchase_date_count,
                 MIN(ps.purchase_date) as first_purchase_date,
                 MAX(ps.purchase_date) as last_purchase_date
             FROM purchase_slip ps
             WHERE ps.jan_code IN ({$janCodesPlaceholder})
             ";
-            $params = array_merge($janCodes, $janCodes, $janCodes);
+            $params = array_merge($janCodes, $janCodes);
         }
         
         log_message('info', 'getPurchaseInfo SQL: ' . $sql);
@@ -252,6 +353,16 @@ class SingleProductAnalysisService
         if (!$result || $result['total_purchase_qty'] <= 0) {
             throw new SingleProductAnalysisException('仕入データが見つかりません');
         }
+        
+        // 別途purchase_date_countを取得（SQL Serverサブクエリ制約回避）
+        $dateSql = "
+        SELECT COUNT(DISTINCT purchase_date) as purchase_date_count
+        FROM purchase_slip 
+        WHERE jan_code IN ({$janCodesPlaceholder})
+        ";
+        
+        $dateResult = $this->db->query($dateSql, $janCodes)->getRowArray();
+        $result['purchase_date_count'] = $dateResult['purchase_date_count'] ?? 0;
         
         // 仕入前売上のチェック
         $prePurchaseSales = $this->checkPrePurchaseSales($janCodes, $result['first_purchase_date']);
@@ -271,6 +382,17 @@ class SingleProductAnalysisService
     
     /**
      * 仕入前売上のチェック
+     * 
+     * 最初仕入日より前に発生した売上を検出する。
+     * 前期在庫からの売上や期またぎ処理の確認に使用。
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @param string $firstPurchaseDate 最初仕入日
+     * @return array 仕入前売上情報配列
+     *               - exists: 仕入前売上存在フラグ
+     *               - record_count: レコード数
+     *               - total_quantity: 総販売数量
+     *               - total_amount: 総売上金額
      */
     protected function checkPrePurchaseSales(array $janCodes, string $firstPurchaseDate): array
     {
@@ -300,18 +422,25 @@ class SingleProductAnalysisService
     
     /**
      * 週別販売データ取得
+     * 
+     * 指定されたJANコード群の販売データを基準日から週別に集計する。
+     * SQL ServerのDATEADD関数の複雑さを回避するため、日別データを取得してから
+     * PHPで週別集計に変換する方式を採用。
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @param string $baseDate 基準日（品出し日）
+     * @return array 週別販売データ配列（週番号、期間、販売数量、売上金額、平均売価等）
      */
     protected function getWeeklySales(array $janCodes, string $baseDate): array
     {
         $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
         
+        // まず全販売データを日別で取得
         $sql = "
         SELECT 
-            FLOOR(DATEDIFF(day, ?, sales_date) / 7) + 1 as week_number,
-            DATEADD(day, (FLOOR(DATEDIFF(day, ?, sales_date) / 7) * 7), ?) as week_start,
-            DATEADD(day, (FLOOR(DATEDIFF(day, ?, sales_date) / 7) * 7 + 6), ?) as week_end,
-            SUM(sales_quantity) as weekly_sales_qty,
-            SUM(sales_amount) as weekly_sales_amount,
+            sales_date,
+            SUM(sales_quantity) as daily_sales_qty,
+            SUM(sales_amount) as daily_sales_amount,
             AVG(CASE WHEN sales_quantity > 0 THEN sales_unit_price ELSE NULL END) as avg_sales_price,
             COUNT(*) as transaction_count,
             SUM(CASE WHEN sales_quantity < 0 THEN 1 ELSE 0 END) as return_count,
@@ -319,31 +448,138 @@ class SingleProductAnalysisService
         FROM sales_slip
         WHERE jan_code IN ({$janCodesPlaceholder})
           AND sales_date >= ?
-        GROUP BY FLOOR(DATEDIFF(day, ?, sales_date) / 7) + 1,
-                 DATEADD(day, (FLOOR(DATEDIFF(day, ?, sales_date) / 7) * 7), ?),
-                 DATEADD(day, (FLOOR(DATEDIFF(day, ?, sales_date) / 7) * 7 + 6), ?)
-        HAVING FLOOR(DATEDIFF(day, ?, sales_date) / 7) + 1 <= ?
-        ORDER BY FLOOR(DATEDIFF(day, ?, sales_date) / 7) + 1
+        GROUP BY sales_date
+        ORDER BY sales_date
         ";
         
-        $params = array_merge(
-            [$baseDate, $baseDate, $baseDate, $baseDate, $baseDate], // SELECT部用
-            $janCodes,
-            [$baseDate, $baseDate, $baseDate, $baseDate, $baseDate, $baseDate, $this->maxWeeks, $baseDate] // GROUP BY, HAVING, ORDER BY用
-        );
+        $params = array_merge($janCodes, [$baseDate]);
         
-        $result = $this->db->query($sql, $params)->getResultArray();
+        log_message('info', 'getWeeklySales SQL: ' . $sql);
+        log_message('info', 'getWeeklySales パラメータ数: ' . count($params));
         
-        // 週数チェック
-        if (count($result) > $this->maxWeeks) {
-            log_message('warning', "週数が上限を超過: " . count($result) . "週");
-        }
+        $dailyResults = $this->db->query($sql, $params)->getResultArray();
         
-        return $result;
+        // PHPで週別集計に変換
+        return $this->convertDailyToWeekly($dailyResults, $baseDate);
     }
     
     /**
+     * 日別データを週別データに変換
+     * 
+     * 日別の販売データを基準日からの経過日数に基づいて週別に集計する。
+     * 週は基準日を起点とした7日間単位で計算し、週番号は1から開始。
+     * 各週の平均売価は販売数量による加重平均で算出。
+     * 
+     * @param array $dailyResults 日別販売データ配列
+     * @param string $baseDate 基準日（週番号計算の起点）
+     * @return array 週別集計データ配列
+     *               - week_number: 週番号（1から開始）
+     *               - week_start: 週開始日
+     *               - week_end: 週終了日
+     *               - weekly_sales_qty: 週別販売数量
+     *               - weekly_sales_amount: 週別売上金額
+     *               - avg_sales_price: 週別平均売価（加重平均）
+     *               - transaction_count: 取引件数
+     *               - return_count: 返品件数
+     *               - return_qty: 返品数量
+     */
+    protected function convertDailyToWeekly(array $dailyResults, string $baseDate): array
+    {
+        $weeklyData = [];
+        $baseTimestamp = strtotime($baseDate);
+        
+        foreach ($dailyResults as $daily) {
+            $saleTimestamp = strtotime($daily['sales_date']);
+            $daysDiff = ($saleTimestamp - $baseTimestamp) / 86400;
+            $weekNumber = floor($daysDiff / 7) + 1;
+            
+            // 週数制限チェック（1週目未満、最大週数超過は除外）
+            if ($weekNumber > $this->maxWeeks || $weekNumber < 1) {
+                continue;
+            }
+            
+            // 週データの初期化
+            if (!isset($weeklyData[$weekNumber])) {
+                $weekStart = date('Y-m-d', $baseTimestamp + (($weekNumber - 1) * 7 * 86400));
+                $weekEnd = date('Y-m-d', $baseTimestamp + (($weekNumber - 1) * 7 + 6) * 86400);
+                
+                $weeklyData[$weekNumber] = [
+                    'week_number' => $weekNumber,
+                    'week_start' => $weekStart,
+                    'week_end' => $weekEnd,
+                    'weekly_sales_qty' => 0,
+                    'weekly_sales_amount' => 0,
+                    'avg_sales_price' => 0,
+                    'transaction_count' => 0,
+                    'return_count' => 0,
+                    'return_qty' => 0,
+                    'price_total' => 0,    // 加重平均計算用
+                    'price_qty' => 0       // 加重平均計算用
+                ];
+            }
+            
+            // 週別データの累積
+            $weeklyData[$weekNumber]['weekly_sales_qty'] += (int)$daily['daily_sales_qty'];
+            $weeklyData[$weekNumber]['weekly_sales_amount'] += (float)$daily['daily_sales_amount'];
+            $weeklyData[$weekNumber]['transaction_count'] += (int)$daily['transaction_count'];
+            $weeklyData[$weekNumber]['return_count'] += (int)$daily['return_count'];
+            $weeklyData[$weekNumber]['return_qty'] += (int)$daily['return_qty'];
+            
+            // 平均価格計算用データの累積（加重平均）
+            if ($daily['avg_sales_price'] > 0 && $daily['daily_sales_qty'] > 0) {
+                $weeklyData[$weekNumber]['price_total'] += $daily['avg_sales_price'] * $daily['daily_sales_qty'];
+                $weeklyData[$weekNumber]['price_qty'] += $daily['daily_sales_qty'];
+            }
+        }
+        
+        // 各週の平均価格を加重平均で計算
+        foreach ($weeklyData as &$week) {
+            if ($week['price_qty'] > 0) {
+                $week['avg_sales_price'] = $week['price_total'] / $week['price_qty'];
+            }
+            // 計算用の一時データを削除
+            unset($week['price_total'], $week['price_qty']);
+        }
+        
+        // 週数制限チェック（警告出力）
+        if (count($weeklyData) > $this->maxWeeks) {
+            log_message('warning', "週数が上限を超過: " . count($weeklyData) . "週");
+        }
+        
+        // 週番号順にソートして連番配列で返却
+        ksort($weeklyData);
+        
+        return array_values($weeklyData);
+    }
+
+    
+    /**
      * 週別分析データの計算（累計値、粗利、回収率）
+     * 
+     * 週別販売データから累計値、週別粗利、累計粗利、原価回収率を算出する。
+     * 各週の粗利は (平均売価 - 平均原価) × 販売数量 で計算。
+     * 回収率は累計売上金額 ÷ 総仕入金額 × 100 で算出（売上金額ベース）。
+     * 
+     * @param array $weeklySales 週別販売データ配列
+     * @param array $purchaseInfo 仕入情報配列
+     * @param string $baseDate 基準日（品出し日）
+     * @return array 週別分析データ配列
+     *               - week_number: 週番号
+     *               - week_start: 週開始日
+     *               - week_end: 週終了日
+     *               - days_since_start: 基準日からの経過日数
+     *               - weekly_sales_qty: 週別販売数量
+     *               - weekly_sales_amount: 週別売上金額
+     *               - avg_sales_price: 週別平均売価
+     *               - weekly_gross_profit: 週別粗利
+     *               - cumulative_sales_qty: 累計販売数量
+     *               - cumulative_sales_amount: 累計売上金額
+     *               - cumulative_gross_profit: 累計粗利
+     *               - recovery_rate: 累計回収率（％）- 売上金額ベース
+     *               - transaction_count: 取引件数
+     *               - return_count: 返品件数
+     *               - return_qty: 返品数量
+     *               - has_returns: 返品発生フラグ
      */
     protected function calculateWeeklyAnalysis(array $weeklySales, array $purchaseInfo, string $baseDate): array
     {
@@ -357,14 +593,14 @@ class SingleProductAnalysisService
             $cumulativeSales += $week['weekly_sales_qty'];
             $cumulativeAmount += $week['weekly_sales_amount'];
             
-            // 週別粗利計算
+            // 週別粗利計算（表示用）
             $weeklyGrossProfit = $week['weekly_sales_qty'] * 
                 (($week['avg_sales_price'] ?? 0) - $purchaseInfo['avg_cost_price']);
             $cumulativeGrossProfit += $weeklyGrossProfit;
             
-            // 累計回収率計算
+            // 累計回収率計算（売上金額ベース）
             $recoveryRate = $purchaseInfo['total_purchase_cost'] > 0 
-                ? ($cumulativeGrossProfit / $purchaseInfo['total_purchase_cost']) * 100 
+                ? ($cumulativeAmount / $purchaseInfo['total_purchase_cost']) * 100 
                 : 0;
             
             // 経過日数計算
@@ -392,9 +628,24 @@ class SingleProductAnalysisService
         
         return $analysis;
     }
+
+
     
     /**
      * 現在庫計算
+     * 
+     * 在庫移動式による現在庫数量と在庫金額を算出する。
+     * 計算式：現在庫 = 総仕入数量 - 累計販売数量 - 調整数量
+     * 在庫金額は現在庫数量 × 平均原価で算出。
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @param array $purchaseInfo 仕入情報配列
+     * @param array $weeklyAnalysis 週別分析データ配列
+     * @return array 現在庫情報配列
+     *               - current_stock_qty: 現在庫数量
+     *               - current_stock_value: 現在庫金額
+     *               - total_adjustment_qty: 調整数量合計
+     *               - adjustment_records: 調整レコード数
      */
     protected function calculateCurrentStock(array $janCodes, array $purchaseInfo, array $weeklyAnalysis): array
     {
@@ -421,6 +672,14 @@ class SingleProductAnalysisService
     
     /**
      * 調整数量取得
+     * 
+     * 在庫調整伝票から対象商品の調整数量合計を取得する。
+     * 正数は在庫増加、負数は在庫減少を表す。
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @return array 調整数量情報配列
+     *               - total_adjustment: 調整数量合計
+     *               - record_count: 調整レコード数
      */
     protected function getAdjustmentQuantity(array $janCodes): array
     {
@@ -442,8 +701,31 @@ class SingleProductAnalysisService
         ];
     }
     
+
     /**
      * 推奨アクション生成
+     * 
+     * 週別分析結果と現在庫状況に基づいて処分判定と推奨アクションを決定する。
+     * 判定基準（売上金額ベース回収率）：
+     * - 処分可能：粗利黒字 かつ 売上金額回収率100%以上
+     * - 原価回収達成：売上金額回収率100%以上
+     * - 処分検討：8週経過
+     * - 値引き推奨：4週経過
+     * - 定価維持：上記以外
+     * 
+     * @param array $weeklyAnalysis 週別分析データ配列
+     * @param array $currentStock 現在庫情報配列
+     * @param array $basicInfo 基本情報配列
+     * @return array 推奨アクション配列
+     *               - status: ステータスコード
+     *               - message: 判定メッセージ
+     *               - action: 推奨アクション
+     *               - disposal_possible: 処分可能フラグ
+     *               - recovery_achieved: 回収達成フラグ
+     *               - total_weeks: 総週数
+     *               - days_to_disposal: 廃盤までの日数
+     *               - current_stock_qty: 現在庫数量
+     *               - recovery_rate: 回収率（売上金額ベース）
      */
     protected function generateRecommendation(array $weeklyAnalysis, array $currentStock, array $basicInfo): array
     {
@@ -451,16 +733,22 @@ class SingleProductAnalysisService
             return [
                 'status' => 'no_data',
                 'message' => '販売データが不足しています',
-                'action' => '販売実績の蓄積をお待ちください'
+                'action' => '販売実績の蓄積をお待ちください',
+                'disposal_possible' => false,
+                'recovery_achieved' => false,
+                'total_weeks' => 0,
+                'days_to_disposal' => null,
+                'current_stock_qty' => $currentStock['current_stock_qty'],
+                'recovery_rate' => 0
             ];
         }
         
         $lastWeek = end($weeklyAnalysis);
         $totalWeeks = count($weeklyAnalysis);
         
-        // 処分判定
-        $disposalPossible = $lastWeek['cumulative_gross_profit'] > 0;
-        $recoveryAchieved = $lastWeek['recovery_rate'] >= 100;
+        // 処分判定（売上金額ベース回収率を使用）
+        $disposalPossible = $lastWeek['cumulative_gross_profit'] > 0;  // 粗利は黒字判定用
+        $recoveryAchieved = $lastWeek['recovery_rate'] >= 100;          // 売上金額ベース回収率
         
         // 廃盤までの日数
         $daysToDisposal = null;
@@ -474,11 +762,11 @@ class SingleProductAnalysisService
             $status = 'disposal_possible';
             $message = '処分実行可能';
             $action = $currentStock['current_stock_qty'] > 0 
-                ? '残在庫の早期処分を推奨します' 
+                ? '残在庫の早期処分を推奨します（売上金額で原価回収済み）' 
                 : '販売完了済み';
         } elseif ($recoveryAchieved) {
             $status = 'recovery_achieved';
-            $message = '原価回収達成';
+            $message = '売上金額による原価回収達成';
             $action = '値引き販売を検討できます';
         } elseif ($totalWeeks >= 8) {
             $status = 'disposal_consideration';
@@ -505,10 +793,27 @@ class SingleProductAnalysisService
             'current_stock_qty' => $currentStock['current_stock_qty'],
             'recovery_rate' => $lastWeek['recovery_rate']
         ];
-    }
-    
+    }    
+
+
     /**
      * 警告情報の収集
+     * 
+     * 分析過程で検出された注意事項や異常値を警告として収集する。
+     * 警告種類：
+     * - 品出し日未特定：移動データ不足による代替日使用
+     * - 仕入前売上：前期在庫からの売上検出
+     * - 返品発生：マイナス売上の検出
+     * 
+     * @param array $transferInfo 品出し日情報配列
+     * @param array $purchaseInfo 仕入情報配列
+     * @param array $weeklyAnalysis 週別分析データ配列
+     * @return array 警告情報配列
+     *               各要素：
+     *               - type: 警告タイプ
+     *               - level: 警告レベル（info/warning/error）
+     *               - message: 警告メッセージ
+     *               - icon: 表示用アイコンクラス
      */
     protected function collectWarnings(array $transferInfo, array $purchaseInfo, array $weeklyAnalysis): array
     {
@@ -550,6 +855,14 @@ class SingleProductAnalysisService
     
     /**
      * 原価計算方式を設定
+     * 
+     * 仕入原価の計算方式を変更する。
+     * - average: 平均原価法（デフォルト）
+     * - latest: 最終仕入原価法
+     * 
+     * @param string $method 原価計算方式
+     * @return self チェーンメソッド用
+     * @throws \InvalidArgumentException 不正な計算方式が指定された場合
      */
     public function setCostMethod(string $method): self
     {
@@ -560,13 +873,65 @@ class SingleProductAnalysisService
         $this->costMethod = $method;
         return $this;
     }
+    
+    /**
+     * 最大集計週数を設定
+     * 
+     * パフォーマンス保護のための週数上限を変更する。
+     * 
+     * @param int $weeks 最大週数（1以上）
+     * @return self チェーンメソッド用
+     * @throws \InvalidArgumentException 不正な週数が指定された場合
+     */
+    public function setMaxWeeks(int $weeks): self
+    {
+        if ($weeks < 1) {
+            throw new \InvalidArgumentException('最大週数は1以上を指定してください');
+        }
+        
+        $this->maxWeeks = $weeks;
+        return $this;
+    }
+    
+    /**
+     * 処理タイムアウトを設定
+     * 
+     * 長時間処理防止のためのタイムアウト値を変更する。
+     * 
+     * @param int $seconds タイムアウト秒数（1以上）
+     * @return self チェーンメソッド用
+     * @throws \InvalidArgumentException 不正な秒数が指定された場合
+     */
+    public function setTimeout(int $seconds): self
+    {
+        if ($seconds < 1) {
+            throw new \InvalidArgumentException('タイムアウトは1秒以上を指定してください');
+        }
+        
+        $this->timeout = $seconds;
+        return $this;
+    }
 }
 
 /**
  * 単品分析専用例外クラス
+ * 
+ * 単品販売分析処理で発生する業務例外を管理する。
+ * 発生時に自動的にログ出力を行い、エラー追跡を支援する。
+ * 
+ * @package App\Libraries
  */
 class SingleProductAnalysisException extends \Exception
 {
+    /**
+     * コンストラクタ
+     * 
+     * 例外生成時に自動的にエラーログを出力する。
+     * 
+     * @param string $message エラーメッセージ
+     * @param int $code エラーコード
+     * @param \Throwable|null $previous 前の例外
+     */
     public function __construct($message = "", $code = 0, \Throwable $previous = null)
     {
         parent::__construct($message, $code, $previous);

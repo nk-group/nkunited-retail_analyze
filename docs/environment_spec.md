@@ -1,12 +1,8 @@
-校正済みのバージョンを作成しました。見やすさや構成をより整理し、明確な表現に改善しています。
-
----
-
-# **CodeIgniter 4 小売分析システム - 環境情報資料**  
+# **小売業向け販売分析システム - 環境情報資料**  
 
 ## **システム概要**  
 ### **システム名称**  
-**CodeIgniter 4 小売分析システム**  
+**CodeIgniter 4 小売業向け販売分析システム**  
 
 本システムは、基幹システムから出力された各種マスタおよび伝票のExcelファイルをSQL Serverにデータとして取り込み、販売分析に活用することを目的としています。  
 
@@ -79,17 +75,25 @@ mbstring.language = Japanese
 retail_analyze/
 ├── src/
 │   ├── app/
-│   │   ├── Commands/            # CLIコマンド
+│   │   ├── Commands/           # CLIコマンド
 │   │   ├── Config/             # 設定ファイル
 │   │   ├── Controllers/        # コントローラ
 │   │   ├── Filters/            # フィルター
+│   │   ├── Helpers/            # ヘルパー
 │   │   ├── Libraries/          # ライブラリ
 │   │   ├── Models/             # モデル
 │   │   └── Views/              # ビュー
 │   ├── public/                 # Webルート
+│   │   └── assets/             # assets
+│   │         ├── css/           # CSS
+│   │         ├── js/            # Java Script
+│   │         ├── bootstrap/     # Bootstrap
+│   │         └── flatpickr/     # Flatpickr
 │   ├── writable/               # 書き込み可能領域
 │   ├── vendor/                 # Composer依存関係
 │   └── sqlserver/              # SQL Server関連
+│        ├── ddl/                # DDL
+│        └── script/             # Stored,Functionなど
 ```
 
 ---

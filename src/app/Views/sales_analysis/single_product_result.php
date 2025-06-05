@@ -1,162 +1,7 @@
 <?= $this->extend('layouts/default') ?>
 
-<?= $this->section('styles') ?>
-<style>
-    body {
-        background-color: #f5f5f5;
-    }
-    .header-section {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 20px 30px;
-        border-radius: 8px;
-        margin-bottom: 25px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .header-section h2 {
-        margin: 0 0 10px 0;
-        font-size: 24px;
-        font-weight: 600;
-    }
-    .header-section p {
-        margin: 0;
-        opacity: 0.9;
-        font-size: 14px;
-        line-height: 1.4;
-    }
-    .summary-section {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 15px;
-        margin-bottom: 30px;
-    }
-    .summary-card {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        border-left: 4px solid #007bff;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        text-align: center;
-    }
-    .summary-card h4 {
-        margin: 0 0 12px 0;
-        color: #495057;
-        font-size: 14px;
-        font-weight: 600;
-    }
-    .summary-card .value {
-        font-size: 24px;
-        font-weight: bold;
-        color: #007bff;
-    }
-    .recovery-rate {
-        color: #28a745;
-    }
-    .recovery-rate.warning {
-        color: #ffc107;
-    }
-    .recovery-rate.danger {
-        color: #dc3545;
-    }
-    .analysis-table {
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 25px;
-    }
-    .table-header {
-        background: #343a40;
-        color: white;
-        padding: 15px 20px;
-        margin: 0;
-        font-size: 18px;
-        font-weight: 600;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin: 0;
-    }
-    th {
-        background: #495057;
-        color: white;
-        padding: 12px 8px;
-        text-align: center;
-        font-size: 12px;
-        font-weight: 600;
-        border: none;
-    }
-    td {
-        padding: 12px 8px;
-        text-align: center;
-        border-bottom: 1px solid #dee2e6;
-        font-size: 13px;
-        border: none;
-    }
-    .text-left {
-        text-align: left !important;
-    }
-    .price-change {
-        background: #fff3cd;
-        border-left: 3px solid #ffc107;
-    }
-    .sold-out {
-        background: #f8d7da;
-        color: #721c24;
-    }
-    .best-seller {
-        background: #d4edda;
-        color: #155724;
-    }
-    .negative-sales {
-        background: #ffebee;
-        color: #721c24;
-    }
-    .recommendation-section {
-        background: #d4edda;
-        padding: 20px;
-        border-radius: 8px;
-        margin-top: 20px;
-        border-left: 4px solid #28a745;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    .recommendation-section.warning {
-        background: #fff3cd;
-        border-left-color: #ffc107;
-    }
-    .recommendation-section.danger {
-        background: #f8d7da;
-        border-left-color: #dc3545;
-    }
-    .recommendation-section p {
-        margin: 8px 0;
-        font-size: 14px;
-        line-height: 1.5;
-    }
-    .recommendation-section strong {
-        font-weight: 600;
-    }
-    .action-buttons {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-    }
-    .btn {
-        border-radius: 6px;
-        font-weight: 500;
-        transition: all 0.3s;
-    }
-    .btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-    }
-</style>
-<?= $this->endSection() ?>
-
 <?= $this->section('content') ?>
-<div class="container-fluid" style="max-width: 1400px;">
+<div class="container-fluid sales-analysis" style="max-width: 1400px;">
     <!-- ページヘッダー -->
     <div class="action-buttons">
         <a href="<?= site_url('sales-analysis/single-product') ?>" class="btn btn-outline-primary">
@@ -194,24 +39,65 @@
         </div>
     <?php endif; ?>
 
-    <!-- ヘッダー情報 -->
+    <!-- 改善されたヘッダー情報 -->
     <div class="header-section">
-        <h2>商品販売分析 - 単品集計表</h2>
-        <p>メーカー: <?= esc($formatted_result['header_info']['manufacturer_name']) ?> (<?= esc($formatted_result['header_info']['manufacturer_code']) ?>) | 
-           品番: <?= esc($formatted_result['header_info']['product_number']) ?> | 
-           品名: <?= esc($formatted_result['header_info']['product_name']) ?> | 
-           シーズン: <?= esc($formatted_result['header_info']['season_code']) ?></p>
-        <p>品出し日: <?= esc($formatted_result['header_info']['first_transfer_date']) ?> 
-           <?php if ($formatted_result['header_info']['is_fallback_date']): ?>
-               <span class="badge bg-warning">※商品登録日を使用</span>
-           <?php endif; ?> | 
-           経過日数: <?= esc($formatted_result['header_info']['days_since_transfer']) ?>日 | 
-           仕入単価: ¥<?= number_format($formatted_result['header_info']['avg_cost_price']) ?></p>
-        <p>定価: ¥<?= number_format($formatted_result['header_info']['selling_price']) ?>
-           <?php if ($formatted_result['header_info']['deletion_scheduled_date']): ?>
-               | 廃盤予定日: <?= esc($formatted_result['header_info']['deletion_scheduled_date']) ?>
-           <?php endif; ?>
-        </p>
+        <h2 class="page-title">商品販売分析 - 単品集計表</h2>
+        
+        <!-- メーカー情報 -->
+        <div class="manufacturer-info">
+            <?= esc($formatted_result['header_info']['manufacturer_name']) ?> (<?= esc($formatted_result['header_info']['manufacturer_code']) ?>)
+        </div>
+        
+        <!-- 商品名 -->
+        <div class="product-name">
+            <?= esc($formatted_result['header_info']['product_name']) ?>
+        </div>
+        
+        <!-- 品番・シーズン情報 -->
+        <div class="product-details">
+            品番: <?= esc($formatted_result['header_info']['product_number']) ?> | 
+            シーズン: <?= esc($formatted_result['header_info']['season_code']) ?>
+        </div>
+        
+        <!-- 重要指標 -->
+        <div class="key-metrics">
+            <div class="metric-item">
+                <span class="metric-icon">📅</span>
+                <span class="metric-label">品出し日:</span>
+                <span class="metric-value date">
+                    <?= esc($formatted_result['header_info']['first_transfer_date']) ?>
+                    <?php if ($formatted_result['header_info']['is_fallback_date']): ?>
+                        <small style="opacity: 0.8;">※商品登録日を使用</small>
+                    <?php endif; ?>
+                </span>
+            </div>
+            
+            <div class="metric-item">
+                <span class="metric-icon">⏰</span>
+                <span class="metric-label">経過日数:</span>
+                <span class="metric-value days"><?= esc($formatted_result['header_info']['days_since_transfer']) ?>日</span>
+            </div>
+            
+            <div class="metric-item">
+                <span class="metric-icon">💰</span>
+                <span class="metric-label">仕入単価:</span>
+                <span class="metric-value price">¥<?= number_format($formatted_result['header_info']['avg_cost_price']) ?></span>
+            </div>
+            
+            <div class="metric-item">
+                <span class="metric-icon">🏪</span>
+                <span class="metric-label">定価:</span>
+                <span class="metric-value price">¥<?= number_format($formatted_result['header_info']['selling_price']) ?></span>
+            </div>
+            
+            <?php if ($formatted_result['header_info']['deletion_scheduled_date']): ?>
+            <div class="metric-item">
+                <span class="metric-icon">📋</span>
+                <span class="metric-label">廃盤予定日:</span>
+                <span class="metric-value date"><?= esc($formatted_result['header_info']['deletion_scheduled_date']) ?></span>
+            </div>
+            <?php endif; ?>
+        </div>
     </div>
 
     <!-- サマリー情報 -->
@@ -251,6 +137,60 @@
         <div class="summary-card">
             <h4>定価</h4>
             <div class="value">¥<?= number_format($formatted_result['summary_info']['selling_price']) ?></div>
+        </div>
+        <div class="summary-card clickable" onclick="showProductModal()">
+            <h4>集計対象商品</h4>
+            <div class="value"><?= count($analysis_result['basic_info']['jan_details'] ?? []) ?>個のSKU</div>
+        </div>
+    </div>
+
+    <!-- 対象商品モーダル -->
+    <div class="modal-overlay" id="productModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="bi bi-box-seam me-2"></i>集計対象商品一覧</h3>
+                <button class="modal-close" onclick="hideProductModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="product-group-info">
+                    <h4><?= esc($formatted_result['header_info']['product_name']) ?></h4>
+                    <p>品番: <?= esc($formatted_result['header_info']['product_number']) ?> | 
+                       対象SKU数: <?= count($analysis_result['basic_info']['jan_details'] ?? []) ?>個</p>
+                </div>
+                
+                <table class="products-table">
+                    <thead>
+                        <tr>
+                            <th>JANコード</th>
+                            <th>サイズ</th>
+                            <th>カラー</th>
+                            <th>売価</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($analysis_result['basic_info']['jan_details'])): ?>
+                            <?php foreach ($analysis_result['basic_info']['jan_details'] as $product): ?>
+                                <tr>
+                                    <td style="font-family: monospace;"><?= esc($product['jan_code']) ?></td>
+                                    <td><?= esc($product['size_name'] ?? 'F') ?></td>
+                                    <td><?= esc($product['color_name'] ?? '-') ?></td>
+                                    <td>¥<?= number_format($product['selling_price'] ?? 0) ?></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">商品データがありません</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <p class="info-text">
+                    <i class="bi bi-info-circle me-1"></i>
+                    これらのSKUの販売実績を合算して分析しています
+                </p>
+            </div>
         </div>
     </div>
 
@@ -369,6 +309,15 @@
         </div>
     <?php endif; ?>
 </div>
+
+<?php
+// CSS読み込みフラグとbodyクラスを設定
+$this->setData([
+    'useSalesAnalysisCSS' => true,
+    'bodyClass' => 'sales-analysis'
+]);
+?>
+
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
@@ -378,6 +327,34 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('実行時間: <?= $execution_time ?? 0 ?>秒');
     
     // 将来的な拡張: データの動的読み込みやチャート表示などを実装予定
+});
+
+// 対象商品モーダル表示
+function showProductModal() {
+    const modal = document.getElementById('productModal');
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+// 対象商品モーダル非表示
+function hideProductModal() {
+    const modal = document.getElementById('productModal');
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+}
+
+// モーダル外クリックで閉じる
+document.getElementById('productModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideProductModal();
+    }
+});
+
+// ESCキーでモーダルを閉じる
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideProductModal();
+    }
 });
 </script>
 <?= $this->endSection() ?>

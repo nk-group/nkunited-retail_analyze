@@ -1,22 +1,26 @@
 <?= $this->extend('layouts/default') ?>
 
 <?= $this->section('content') ?>
-<div class="container">
-    <h2 class="mb-4">商品販売分析</h2>
+<div class="container sales-analysis">
+    <!-- ヘッダーセクション -->
+    <div class="header-section">
+        <h1 class="page-title">📊 商品販売分析システム</h1>
+        <p class="page-subtitle">データドリブンな意思決定を支援する総合分析プラットフォーム</p>
+    </div>
     
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
         <div class="col">
-            <div class="card h-100 shadow-sm">
+            <div class="card-modern h-100">
                 <div class="card-body text-center">
-                    <div class="card-icon text-primary mb-3">
-                        <i class="bi bi-graph-up-arrow" style="font-size: 3rem;"></i>
+                    <div class="card-icon text-primary">
+                        <i class="bi bi-graph-up-arrow"></i>
                     </div>
                     <h5 class="card-title">単品分析</h5>
                     <p class="card-text">
                         指定した商品の週別販売推移、原価回収率、在庫処分判定を分析します。
                         品出し後の販売状況を詳細に確認できます。
                     </p>
-                    <a href="<?= site_url('sales-analysis/single-product') ?>" class="btn btn-outline-primary stretched-link">
+                    <a href="<?= site_url('sales-analysis/single-product') ?>" class="btn btn-primary stretched-link">
                         <i class="bi bi-search me-2"></i>単品分析を開始
                     </a>
                 </div>
@@ -24,13 +28,13 @@
         </div>
         
         <div class="col">
-            <div class="card h-100 shadow-sm opacity-50">
+            <div class="card-modern h-100 disabled">
                 <div class="card-body text-center">
-                    <div class="card-icon text-muted mb-3">
-                        <i class="bi bi-bar-chart-line" style="font-size: 3rem;"></i>
+                    <div class="card-icon">
+                        <i class="bi bi-bar-chart-line"></i>
                     </div>
-                    <h5 class="card-title text-muted">カテゴリ分析</h5>
-                    <p class="card-text text-muted">
+                    <h5 class="card-title">カテゴリ分析</h5>
+                    <p class="card-text">
                         部門やカテゴリ別の販売動向を分析します。
                         複数商品の比較分析が可能です。
                     </p>
@@ -42,13 +46,13 @@
         </div>
         
         <div class="col">
-            <div class="card h-100 shadow-sm opacity-50">
+            <div class="card-modern h-100 disabled">
                 <div class="card-body text-center">
-                    <div class="card-icon text-muted mb-3">
-                        <i class="bi bi-calendar-week" style="font-size: 3rem;"></i>
+                    <div class="card-icon">
+                        <i class="bi bi-calendar-week"></i>
                     </div>
-                    <h5 class="card-title text-muted">期間比較分析</h5>
-                    <p class="card-text text-muted">
+                    <h5 class="card-title">期間比較分析</h5>
+                    <p class="card-text">
                         前年同期や前シーズンとの比較分析を行います。
                         トレンド分析に活用できます。
                     </p>
@@ -72,18 +76,12 @@
     </div>
 </div>
 
-<?= $this->endSection() ?>
+<?php
+// CSS読み込みフラグとbodyクラスを設定
+$this->setData([
+    'useSalesAnalysisCSS' => true,
+    'bodyClass' => 'sales-analysis'
+]);
+?>
 
-<?= $this->section('styles') ?>
-<style>
-.card-icon {
-    transition: transform 0.3s ease;
-}
-.card:hover .card-icon {
-    transform: scale(1.1);
-}
-.card.opacity-50:hover .card-icon {
-    transform: none;
-}
-</style>
 <?= $this->endSection() ?>

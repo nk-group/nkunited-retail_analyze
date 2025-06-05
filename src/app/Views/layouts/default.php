@@ -9,9 +9,14 @@
     <link href="<?= base_url('assets/css/style.css') ?>" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
+    <!-- 販売分析システム用CSS -->
+    <?php if (isset($useSalesAnalysisCSS) && $useSalesAnalysisCSS): ?>
+        <link href="<?= base_url('assets/css/sales_analysis.css') ?>" rel="stylesheet">
+    <?php endif; ?>
+    
     <?= $this->renderSection('styles') ?>
 </head>
-<body class="d-flex flex-column min-vh-100">
+<body class="d-flex flex-column min-vh-100 <?= isset($bodyClass) ? esc($bodyClass) : '' ?>">
 
     <?= $this->include('templates/navbar') ?>
 

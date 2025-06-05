@@ -124,12 +124,12 @@ class SlipImportController extends BaseController
                 'rules' => [
                     "uploaded[{$fileInputName}]",
                     "mime_in[{$fileInputName},application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv]", // Excel, CSV
-                    "max_size[{$fileInputName},5120]", // 5MB (MasterImportController は 20MB だったので、必要に応じて調整)
+                    "max_size[{$fileInputName},30720]",
                 ],
                 'errors' => [ 
                     'uploaded' => '{field}を選択してください。',
                     'mime_in'  => '{field}はExcelファイル (.xlsx, .xls) またはCSVファイル (.csv) である必要があります。',
-                    'max_size' => '{field}のサイズが大きすぎます。5MB以下のファイルを選択してください。', // 同上
+                    'max_size' => '{field}のサイズが大きすぎます。30MB以下のファイルを選択してください。',
                 ]
             ],
             // 'target_data_name' (hidden field) のバリデーションは必須ではないが、

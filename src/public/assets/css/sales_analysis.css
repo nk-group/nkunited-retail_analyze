@@ -1,0 +1,692 @@
+/*
+ * 商品販売分析システム - 統一デザインCSS
+ * (public/assets/css/sales_analysis.css)
+ */
+
+/* ===== 共通ベーススタイル ===== */
+
+body.sales-analysis {
+    background-color: #f5f5f5;
+}
+
+/* ===== ヘッダーセクション（全画面共通） ===== */
+
+.header-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.header-section .page-title {
+    margin: 0 0 20px 0;
+    font-size: 28px;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 2px solid rgba(255,255,255,0.3);
+    padding-bottom: 15px;
+}
+
+.header-section .page-subtitle {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 16px;
+    text-align: center;
+    line-height: 1.4;
+}
+
+/* メーカー情報 */
+.manufacturer-info {
+    font-size: 14px;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+/* 商品名 */
+.product-name {
+    font-size: 32px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    margin: 12px 0;
+    line-height: 1.2;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* 品番・シーズン情報 */
+.product-details {
+    font-size: 16px;
+    color: rgba(255,255,255,0.9);
+    text-align: center;
+    margin-bottom: 25px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+/* 重要指標エリア */
+.key-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.metric-item {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    color: white;
+    background: rgba(255,255,255,0.1);
+    padding: 12px 16px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.metric-icon {
+    font-size: 18px;
+    margin-right: 10px;
+    opacity: 0.9;
+}
+
+.metric-label {
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+.metric-value {
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.metric-value.price {
+    color: #90EE90;
+}
+
+.metric-value.days {
+    color: #FFB347;
+}
+
+.metric-value.date {
+    color: #87CEEB;
+}
+
+/* ===== カードスタイル（全画面共通） ===== */
+
+.card-modern {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    border: none;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.card-modern:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+
+.card-modern .card-body {
+    padding: 30px;
+}
+
+.card-modern .card-icon {
+    font-size: 3rem;
+    text-align: center;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.card-modern:hover .card-icon {
+    transform: scale(1.1);
+}
+
+.card-modern .card-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.card-modern .card-text {
+    line-height: 1.6;
+    color: #6c757d;
+    text-align: center;
+}
+
+.card-modern .btn {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 12px 24px;
+    transition: all 0.3s ease;
+}
+
+.card-modern.disabled {
+    opacity: 0.6;
+    transform: none !important;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1) !important;
+}
+
+.card-modern.disabled:hover {
+    transform: none !important;
+}
+
+.card-modern.disabled .card-icon {
+    color: #6c757d;
+}
+
+.card-modern.disabled .card-title {
+    color: #6c757d;
+}
+
+/* ===== ステップ式UI（入力画面用） ===== */
+
+.step-container {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.step-number {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #007bff;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+    margin-right: 20px;
+    flex-shrink: 0;
+    transition: all 0.3s;
+}
+
+.step-number.completed {
+    background: #28a745;
+    transform: scale(1.1);
+}
+
+.step-number.disabled {
+    background: #dee2e6;
+    color: #6c757d;
+}
+
+.step-content {
+    flex: 1;
+}
+
+/* ===== フォーム要素（入力画面用） ===== */
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.form-control {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 12px 15px;
+    font-size: 14px;
+    transition: all 0.3s;
+    min-width: 200px;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+}
+
+.btn {
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.btn-execute {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border: none;
+    color: white;
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+
+.btn-execute:hover:not(:disabled) {
+    background: linear-gradient(135deg, #218838, #1eb88a);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(40,167,69,0.3);
+}
+
+.display-value {
+    display: inline-block;
+    padding: 10px 15px;
+    background: #e9ecef;
+    border-radius: 8px;
+    font-weight: 500;
+    color: #495057;
+    min-width: 200px;
+    border: 2px solid transparent;
+}
+
+.display-value.empty {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* ===== サマリーカード（結果画面用） ===== */
+
+.summary-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.summary-card.clickable {
+    cursor: pointer;
+    border-left-color: #28a745;
+}
+
+.summary-card.clickable:hover {
+    background: #e8f5e9;
+    border-left-color: #1e7e34;
+}
+
+.summary-card h4 {
+    margin: 0 0 12px 0;
+    color: #495057;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.summary-card .value {
+    font-size: 22px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.recovery-rate {
+    color: #28a745;
+}
+
+.recovery-rate.warning {
+    color: #ffc107;
+}
+
+.recovery-rate.danger {
+    color: #dc3545;
+}
+
+/* ===== テーブルスタイル（結果画面用） ===== */
+
+.analysis-table {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+}
+
+.table-header {
+    background: #343a40;
+    color: white;
+    padding: 15px 20px;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+}
+
+th {
+    background: #495057;
+    color: white;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+}
+
+td {
+    padding: 12px 8px;
+    text-align: center;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 13px;
+    border: none;
+}
+
+.text-left {
+    text-align: left !important;
+}
+
+.price-change {
+    background: #fff3cd;
+    border-left: 3px solid #ffc107;
+}
+
+.sold-out {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.best-seller {
+    background: #d4edda;
+    color: #155724;
+}
+
+.negative-sales {
+    background: #ffebee;
+    color: #721c24;
+}
+
+/* ===== 推奨アクション（結果画面用） ===== */
+
+.recommendation-section {
+    background: #d4edda;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    border-left: 4px solid #28a745;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.recommendation-section.warning {
+    background: #fff3cd;
+    border-left-color: #ffc107;
+}
+
+.recommendation-section.danger {
+    background: #f8d7da;
+    border-left-color: #dc3545;
+}
+
+.recommendation-section p {
+    margin: 8px 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.recommendation-section strong {
+    font-weight: 600;
+}
+
+/* ===== モーダル（結果画面用） ===== */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.show .modal-content {
+    transform: scale(1);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.3s;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.product-group-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #28a745;
+}
+
+.product-group-info h4 {
+    margin: 0 0 8px 0;
+    color: #155724;
+    font-size: 18px;
+}
+
+.product-group-info p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.products-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.products-table th {
+    background: #343a40;
+    color: white;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.products-table td {
+    padding: 10px 8px;
+    text-align: center;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 13px;
+}
+
+.products-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.modal-footer {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    text-align: center;
+    border-top: 1px solid #dee2e6;
+}
+
+.modal-footer .info-text {
+    color: #6c757d;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* ===== アクションボタン ===== */
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* ===== 警告・アラート ===== */
+
+.warning-box {
+    background: #fff3cd;
+    border-left: 4px solid #ffc107;
+    border-radius: 6px;
+    padding: 15px;
+    margin-top: 20px;
+}
+
+.warning-box strong {
+    color: #856404;
+}
+
+.warning-box ul {
+    margin: 8px 0 0 20px;
+    color: #856404;
+}
+
+.success-message {
+    color: #28a745;
+    font-size: 14px;
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+.success-message i {
+    margin-right: 5px;
+}
+
+/* ===== レスポンシブ対応 ===== */
+
+@media (max-width: 768px) {
+    .header-section {
+        padding: 20px;
+    }
+    
+    .header-section .page-title {
+        font-size: 24px;
+    }
+    
+    .product-name {
+        font-size: 24px;
+    }
+    
+    .key-metrics {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .metric-item {
+        font-size: 14px;
+        padding: 10px 12px;
+    }
+    
+    .manufacturer-info,
+    .product-details {
+        font-size: 14px;
+    }
+    
+    .card-modern .card-body {
+        padding: 20px;
+    }
+    
+    .step-container {
+        flex-direction: column;
+    }
+    
+    .step-number {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+    
+    .form-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .form-control {
+        min-width: auto;
+    }
+}
