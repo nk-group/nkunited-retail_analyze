@@ -9,6 +9,10 @@ body.sales-analysis {
     background-color: #f5f5f5;
 }
 
+.container.sales-analysis {
+    padding: 20px 15px;
+}
+
 /* ===== ヘッダーセクション（全画面共通） ===== */
 
 .header-section {
@@ -47,23 +51,24 @@ body.sales-analysis {
 
 /* 商品名 */
 .product-name {
-    font-size: 32px;
+    font-size: 36px;
     font-weight: 700;
-    color: white;
+    color: #ffffff;
     text-align: center;
-    margin: 12px 0;
+    margin: 8px 0;
     line-height: 1.2;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
 }
 
 /* 品番・シーズン情報 */
 .product-details {
-    font-size: 16px;
-    color: rgba(255,255,255,0.9);
+    font-size: 18px;
+    color: #ffffff;
     text-align: center;
-    margin-bottom: 25px;
-    padding-bottom: 20px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
     border-bottom: 1px solid rgba(255,255,255,0.2);
+    font-weight: 500;
 }
 
 /* 重要指標エリア */
@@ -139,6 +144,7 @@ body.sales-analysis {
     text-align: center;
     margin-bottom: 20px;
     transition: all 0.3s ease;
+    color: #0d6efd;
 }
 
 .card-modern:hover .card-icon {
@@ -298,6 +304,186 @@ body.sales-analysis {
     font-style: italic;
 }
 
+/* ===== 商品リスト（入力画面用） ===== */
+
+.product-list {
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: white;
+}
+
+.product-item {
+    padding: 12px 16px;
+    border-bottom: 1px solid #dee2e6;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.product-item:hover {
+    background-color: #f8f9fa;
+}
+
+.product-item.selected {
+    background-color: #e3f2fd;
+    border-left: 4px solid #007bff;
+}
+
+.product-item:last-child {
+    border-bottom: none;
+}
+
+.product-info {
+    flex: 1;
+}
+
+.product-item .product-name {
+    font-weight: 600;
+    color: #495057;
+    font-size: 18px;
+    line-height: 1.3;
+}
+
+.product-item .product-details {
+    font-size: 14px;
+    color: #6c757d;
+    margin-top: 5px;
+}
+
+.jan-count {
+    background: #007bff;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.target-products {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.target-products h4 {
+    margin: 0 0 15px 0;
+    color: #495057;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.jan-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.jan-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: #495057;
+    font-weight: 500;
+}
+
+/* ===== モーダル関連（入力画面用） ===== */
+
+.modal-search-form {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.selected-maker-info,
+.selected-product-info {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border: 2px solid #2196f3;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+}
+
+.info-header {
+    font-weight: bold;
+    color: #1976d2;
+    margin-bottom: 8px;
+}
+
+.info-content {
+    color: #0d47a1;
+    font-size: 0.95rem;
+}
+
+.current-maker-info {
+    background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.product-search-form {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.search-results-info {
+    background: #e9ecef;
+    padding: 8px 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    color: #495057;
+}
+
+.maker-reference-table-container,
+.product-reference-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.maker-reference-table,
+.product-reference-table {
+    font-size: 0.9rem;
+    margin-bottom: 0;
+}
+
+.maker-reference-table thead,
+.product-reference-table thead {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+.modal-pagination {
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 10px 0;
+    border-top: 1px solid #dee2e6;
+}
+
+.page-info {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin: 0 10px;
+}
+
 /* ===== サマリーカード（結果画面用） ===== */
 
 .summary-section {
@@ -376,13 +562,13 @@ body.sales-analysis {
     font-weight: 600;
 }
 
-table {
+.analysis-table table {
     width: 100%;
     border-collapse: collapse;
     margin: 0;
 }
 
-th {
+.analysis-table th {
     background: #495057;
     color: white;
     padding: 12px 8px;
@@ -392,7 +578,7 @@ th {
     border: none;
 }
 
-td {
+.analysis-table td {
     padding: 12px 8px;
     text-align: center;
     border-bottom: 1px solid #dee2e6;
@@ -445,6 +631,21 @@ td {
     border-left-color: #dc3545;
 }
 
+.recommendation-section.info {
+    background: #d1ecf1;
+    border-left-color: #17a2b8;
+}
+
+.recommendation-section.primary {
+    background: #d1ecf1;
+    border-left-color: #007bff;
+}
+
+.recommendation-section.secondary {
+    background: #e2e3e5;
+    border-left-color: #6c757d;
+}
+
 .recommendation-section p {
     margin: 8px 0;
     font-size: 14px;
@@ -455,7 +656,7 @@ td {
     font-weight: 600;
 }
 
-/* ===== モーダル（結果画面用） ===== */
+/* ===== 結果画面用モーダル ===== */
 
 .modal-overlay {
     position: fixed;
@@ -478,7 +679,7 @@ td {
     visibility: visible;
 }
 
-.modal-content {
+.modal-overlay .modal-content {
     background: white;
     border-radius: 12px;
     width: 90%;
@@ -494,7 +695,7 @@ td {
     transform: scale(1);
 }
 
-.modal-header {
+.modal-overlay .modal-header {
     background: linear-gradient(135deg, #28a745, #20c997);
     color: white;
     padding: 20px;
@@ -503,7 +704,7 @@ td {
     align-items: center;
 }
 
-.modal-header h3 {
+.modal-overlay .modal-header h3 {
     margin: 0;
     font-size: 20px;
     font-weight: 600;
@@ -529,7 +730,7 @@ td {
     background: rgba(255, 255, 255, 0.2);
 }
 
-.modal-body {
+.modal-overlay .modal-body {
     padding: 20px;
     max-height: 60vh;
     overflow-y: auto;
@@ -581,14 +782,14 @@ td {
     background: #f8f9fa;
 }
 
-.modal-footer {
+.modal-overlay .modal-footer {
     background: #f8f9fa;
     padding: 15px 20px;
     text-align: center;
     border-top: 1px solid #dee2e6;
 }
 
-.modal-footer .info-text {
+.modal-overlay .modal-footer .info-text {
     color: #6c757d;
     font-size: 14px;
     margin: 0;
@@ -627,6 +828,19 @@ td {
     color: #856404;
 }
 
+.analysis-warnings {
+    margin-bottom: 20px;
+}
+
+.analysis-warnings .alert {
+    margin-bottom: 0;
+}
+
+.analysis-warnings ul {
+    margin-bottom: 0;
+    margin-top: 10px;
+}
+
 .success-message {
     color: #28a745;
     font-size: 14px;
@@ -641,6 +855,10 @@ td {
 /* ===== レスポンシブ対応 ===== */
 
 @media (max-width: 768px) {
+    .container.sales-analysis {
+        padding: 10px;
+    }
+    
     .header-section {
         padding: 20px;
     }
@@ -650,7 +868,19 @@ td {
     }
     
     .product-name {
-        font-size: 24px;
+        font-size: 28px;
+    }
+    
+    .header-section .product-details {
+        font-size: 16px;
+    }
+    
+    .product-item .product-name {
+        font-size: 16px;
+    }
+    
+    .product-item .product-details {
+        font-size: 13px;
     }
     
     .key-metrics {
@@ -688,5 +918,50 @@ td {
     
     .form-control {
         min-width: auto;
+    }
+    
+    .summary-section {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 8px;
+    }
+    
+    .summary-card {
+        padding: 12px;
+    }
+    
+    .summary-card h4 {
+        font-size: 12px;
+    }
+    
+    .summary-card .value {
+        font-size: 18px;
+    }
+    
+    .action-buttons {
+        justify-content: center;
+    }
+    
+    .analysis-table {
+        overflow-x: auto;
+    }
+    
+    .analysis-table th,
+    .analysis-table td {
+        padding: 8px 4px;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+    
+    .modal-overlay .modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .modal-overlay .modal-header {
+        padding: 15px;
+    }
+    
+    .modal-overlay .modal-body {
+        padding: 15px;
     }
 }

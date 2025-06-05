@@ -1,230 +1,11 @@
 <?= $this->extend('layouts/default') ?>
 
-<?= $this->section('styles') ?>
-<style>
-    body {
-        background-color: #f8f9fa;
-    }
-    .step-container {
-        display: flex;
-        align-items: flex-start;
-        margin-bottom: 30px;
-        padding: 20px;
-        background: white;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    .step-number {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: #007bff;
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        font-size: 18px;
-        margin-right: 20px;
-        flex-shrink: 0;
-        transition: all 0.3s;
-    }
-    .step-number.completed {
-        background: #28a745;
-        transform: scale(1.1);
-    }
-    .step-number.disabled {
-        background: #dee2e6;
-        color: #6c757d;
-    }
-    .step-content {
-        flex: 1;
-    }
-    .form-group {
-        margin-bottom: 20px;
-    }
-    .form-row {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        margin-bottom: 15px;
-        flex-wrap: wrap;
-    }
-    .form-control {
-        border: 2px solid #dee2e6;
-        border-radius: 8px;
-        padding: 12px 15px;
-        font-size: 14px;
-        transition: all 0.3s;
-        min-width: 200px;
-    }
-    .form-control:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
-    }
-    .btn {
-        border-radius: 8px;
-        padding: 10px 20px;
-        font-weight: 500;
-        transition: all 0.3s;
-    }
-    .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,123,255,0.3);
-    }
-    .btn-execute {
-        background: linear-gradient(135deg, #28a745, #20c997);
-        border: none;
-        color: white;
-        padding: 15px 30px;
-        font-size: 16px;
-        font-weight: 600;
-        border-radius: 10px;
-        margin-top: 20px;
-    }
-    .btn-execute:hover:not(:disabled) {
-        background: linear-gradient(135deg, #218838, #1eb88a);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(40,167,69,0.3);
-    }
-    .display-value {
-        display: inline-block;
-        padding: 10px 15px;
-        background: #e9ecef;
-        border-radius: 8px;
-        font-weight: 500;
-        color: #495057;
-        min-width: 200px;
-        border: 2px solid transparent;
-    }
-    .display-value.empty {
-        color: #6c757d;
-        font-style: italic;
-    }
-    .product-list {
-        border: 2px solid #dee2e6;
-        border-radius: 8px;
-        max-height: 300px;
-        overflow-y: auto;
-        background: white;
-    }
-    .product-item {
-        padding: 15px 20px;
-        border-bottom: 1px solid #dee2e6;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    .product-item:hover {
-        background-color: #f8f9fa;
-    }
-    .product-item.selected {
-        background-color: #e3f2fd;
-        border-left: 4px solid #007bff;
-    }
-    .product-item:last-child {
-        border-bottom: none;
-    }
-    .product-info {
-        flex: 1;
-    }
-    .product-name {
-        font-weight: 600;
-        color: #495057;
-        font-size: 16px;
-    }
-    .product-details {
-        font-size: 13px;
-        color: #6c757d;
-        margin-top: 4px;
-    }
-    .jan-count {
-        background: #007bff;
-        color: white;
-        padding: 6px 12px;
-        border-radius: 15px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    .target-products {
-        background: #f8f9fa;
-        border: 2px solid #dee2e6;
-        border-radius: 8px;
-        padding: 20px;
-        margin-top: 20px;
-    }
-    .target-products h4 {
-        margin: 0 0 15px 0;
-        color: #495057;
-        font-size: 16px;
-        font-weight: 600;
-    }
-    .jan-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-    .jan-item {
-        background: white;
-        border: 1px solid #dee2e6;
-        padding: 8px 12px;
-        border-radius: 6px;
-        font-size: 13px;
-        color: #495057;
-        font-weight: 500;
-    }
-    .success-message {
-        color: #28a745;
-        font-size: 14px;
-        margin-top: 8px;
-        font-weight: 500;
-    }
-    .success-message i {
-        margin-right: 5px;
-    }
-    .header-section {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 30px;
-        border-radius: 12px;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-    .header-section h1 {
-        margin: 0 0 10px 0;
-        font-size: 28px;
-        font-weight: 600;
-    }
-    .header-section p {
-        margin: 0;
-        opacity: 0.9;
-        font-size: 16px;
-    }
-    .warning-box {
-        background: #fff3cd;
-        border-left: 4px solid #ffc107;
-        border-radius: 6px;
-        padding: 15px;
-        margin-top: 20px;
-    }
-    .warning-box strong {
-        color: #856404;
-    }
-    .warning-box ul {
-        margin: 8px 0 0 20px;
-        color: #856404;
-    }
-</style>
-<?= $this->endSection() ?>
-
 <?= $this->section('content') ?>
-<div class="container-fluid" style="max-width: 1200px;">
+<div class="container-fluid sales-analysis" style="max-width: 1200px;">
     <!-- ヘッダーセクション -->
     <div class="header-section">
-        <h1><i class="bi bi-search me-3"></i>商品販売分析システム</h1>
-        <p>単品売上分析・収益性分析・在庫処分判定</p>
+        <h1 class="page-title"><i class="bi bi-search me-3"></i>商品販売分析システム</h1>
+        <p class="page-subtitle">単品売上分析・収益性分析・在庫処分判定</p>
     </div>
 
     <!-- エラー・成功メッセージ -->
@@ -381,7 +162,7 @@
             </div>
             <div class="modal-body">
                 <!-- 検索フォーム -->
-                <div class="modal-search-form" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div class="modal-search-form">
                     <div class="row g-3">
                         <div class="col-md-8">
                             <label for="modal_search_keyword" class="form-label">検索キーワード</label>
@@ -399,26 +180,26 @@
                 </div>
 
                 <!-- 選択されたメーカー情報表示 -->
-                <div id="selected_maker_info" class="selected-maker-info" style="display: none; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 2px solid #2196f3; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                    <div class="info-header" style="font-weight: bold; color: #1976d2; margin-bottom: 8px;">
+                <div id="selected_maker_info" class="selected-maker-info" style="display: none;">
+                    <div class="info-header">
                         <i class="bi bi-check-circle-fill me-2"></i>選択中のメーカー
                     </div>
-                    <div class="info-content" style="color: #0d47a1; font-size: 0.95rem;">
+                    <div class="info-content">
                         <strong>コード:</strong> <span id="selected_code">-</span><br>
                         <strong>名称:</strong> <span id="selected_name">-</span>
                     </div>
                 </div>
 
                 <!-- 検索結果情報 -->
-                <div id="search_results_info" class="search-results-info" style="display: none; background: #e9ecef; padding: 8px 15px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; color: #495057;">
+                <div id="search_results_info" class="search-results-info" style="display: none;">
                     <i class="bi bi-info-circle me-2"></i>
                     <span id="results_count_text">-</span>
                 </div>
 
                 <!-- 検索結果テーブル -->
-                <div class="maker-reference-table-container" style="max-height: 400px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px;">
-                    <table class="table table-hover maker-reference-table" style="font-size: 0.9rem; margin-bottom: 0;">
-                        <thead class="table-light" style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
+                <div class="maker-reference-table-container">
+                    <table class="table table-hover maker-reference-table">
+                        <thead class="table-light">
                             <tr>
                                 <th width="30%">メーカーコード</th>
                                 <th width="70%">メーカー名</th>
@@ -431,11 +212,11 @@
                 </div>
 
                 <!-- ページング -->
-                <div id="modal_pagination" class="modal-pagination" style="display: none; justify-content: center; align-items: center; gap: 10px; margin-top: 15px; padding: 10px 0; border-top: 1px solid #dee2e6;">
+                <div id="modal_pagination" class="modal-pagination" style="display: none;">
                     <button type="button" class="btn btn-sm btn-outline-primary" id="btn_prev_page" disabled>
                         <i class="bi bi-chevron-left"></i> 前へ
                     </button>
-                    <span class="page-info" id="page_info" style="color: #6c757d; font-size: 0.9rem; margin: 0 10px;">1 / 1</span>
+                    <span class="page-info" id="page_info">1 / 1</span>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="btn_next_page" disabled>
                         次へ <i class="bi bi-chevron-right"></i>
                     </button>
@@ -467,7 +248,6 @@
     </div>
 </div>
 
-
 <!-- 品番参照モーダル -->
 <div class="modal fade" id="productReferenceModal" tabindex="-1" aria-labelledby="productReferenceModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-xl">
@@ -480,18 +260,18 @@
             </div>
             <div class="modal-body">
                 <!-- 現在選択中のメーカー情報 -->
-                <div class="current-maker-info" style="background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%); border: 2px solid #28a745; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
-                    <div class="info-header" style="font-weight: bold; color: #155724; margin-bottom: 8px;">
+                <div class="current-maker-info">
+                    <div class="info-header">
                         <i class="bi bi-building-fill me-2"></i>対象メーカー
                     </div>
-                    <div class="info-content" style="color: #155724; font-size: 0.95rem;">
+                    <div class="info-content">
                         <strong>コード:</strong> <span id="current_maker_code">-</span><br>
                         <strong>名称:</strong> <span id="current_maker_name">-</span>
                     </div>
                 </div>
 
                 <!-- 検索フォーム -->
-                <div class="product-search-form" style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div class="product-search-form">
                     <div class="row g-3">
                         <div class="col-md-8">
                             <label for="product_search_keyword" class="form-label">品番・品名検索</label>
@@ -509,11 +289,11 @@
                 </div>
 
                 <!-- 選択された品番情報表示 -->
-                <div id="selected_product_info" class="selected-product-info" style="display: none; background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 2px solid #2196f3; border-radius: 8px; padding: 15px; margin-bottom: 15px;">
-                    <div class="info-header" style="font-weight: bold; color: #1976d2; margin-bottom: 8px;">
+                <div id="selected_product_info" class="selected-product-info" style="display: none;">
+                    <div class="info-header">
                         <i class="bi bi-check-circle-fill me-2"></i>選択中の品番
                     </div>
-                    <div class="info-content" style="color: #0d47a1; font-size: 0.95rem;">
+                    <div class="info-content">
                         <strong>品番:</strong> <span id="selected_product_number">-</span><br>
                         <strong>品名:</strong> <span id="selected_product_name">-</span><br>
                         <strong>シーズン:</strong> <span id="selected_season_code">-</span><br>
@@ -523,15 +303,15 @@
                 </div>
 
                 <!-- 検索結果情報 -->
-                <div id="product_search_results_info" class="search-results-info" style="display: none; background: #e9ecef; padding: 8px 15px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; color: #495057;">
+                <div id="product_search_results_info" class="search-results-info" style="display: none;">
                     <i class="bi bi-info-circle me-2"></i>
                     <span id="product_results_count_text">-</span>
                 </div>
 
                 <!-- 検索結果テーブル -->
-                <div class="product-reference-table-container" style="max-height: 500px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 4px;">
-                    <table class="table table-hover product-reference-table" style="font-size: 0.9rem; margin-bottom: 0;">
-                        <thead class="table-light" style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
+                <div class="product-reference-table-container">
+                    <table class="table table-hover product-reference-table">
+                        <thead class="table-light">
                             <tr>
                                 <th width="15%">品番</th>
                                 <th width="25%">品名</th>
@@ -548,11 +328,11 @@
                 </div>
 
                 <!-- ページング -->
-                <div id="product_modal_pagination" class="modal-pagination" style="display: none; justify-content: center; align-items: center; gap: 10px; margin-top: 15px; padding: 10px 0; border-top: 1px solid #dee2e6;">
+                <div id="product_modal_pagination" class="modal-pagination" style="display: none;">
                     <button type="button" class="btn btn-sm btn-outline-primary" id="btn_product_prev_page" disabled>
                         <i class="bi bi-chevron-left"></i> 前へ
                     </button>
-                    <span class="page-info" id="product_page_info" style="color: #6c757d; font-size: 0.9rem; margin: 0 10px;">1 / 1</span>
+                    <span class="page-info" id="product_page_info">1 / 1</span>
                     <button type="button" class="btn btn-sm btn-outline-primary" id="btn_product_next_page" disabled>
                         次へ <i class="bi bi-chevron-right"></i>
                     </button>
@@ -584,11 +364,15 @@
     </div>
 </div>
 
+<?php
+// CSS読み込みフラグとbodyクラスを設定
+$this->setData([
+    'useSalesAnalysisCSS' => true,
+    'bodyClass' => 'sales-analysis'
+]);
+?>
+
 <?= $this->endSection() ?>
-
-
-
-
 
 <?= $this->section('scripts') ?>
 <script>

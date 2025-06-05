@@ -3,11 +3,11 @@
  * (public/assets/css/style.css)
  */
 
-/* --- 認証ページレイアウト (auth_layout.php) 用スタイル --- */
+/* ===== 認証ページレイアウト (auth_layout.php) 用スタイル ===== */
 
 /* 認証関連ページの body タグに適用する背景色 */
 body.auth-layout-background {
-    background-color: #f8f9fa; /* 例: Bootstrap の .bg-light に近い薄いグレー */
+    background-color: #f8f9fa; /* Bootstrap の .bg-light に近い薄いグレー */
 }
 
 /* ログインフォームのカードコンテナのスタイル */
@@ -16,38 +16,104 @@ body.auth-layout-background {
     max-width: 400px; /* ログインカードの最大幅を指定 */
 }
 
-
-/* --- メインアプリケーションレイアウト (default.php) 用スタイル --- */
+/* ===== メインアプリケーションレイアウト (default.php) 用スタイル ===== */
 
 /* 固定ナビゲーションバー (fixed-top) を使用する場合のメインコンテンツの上部パディング */
 /* layouts/default.php の <main> タグに .main-with-navbar クラスを適用した場合に使用されます */
 .main-with-navbar {
-  padding-top: 70px; /* 注: この値はナビゲーションバーの実際の高さによって調整が必要です。
-                         Bootstrapのデフォルトのナビゲーションバーの高さは約56pxですが、
-                         コンテンツやデザインによって変わるため、適切な値を見つけてください。 */
+    padding-top: 70px; /* ナビゲーションバーの高さ分のパディング */
 }
 
-/* メニュー画面のカード内でアイコンを表示する場合のスタイル (任意) */
-/* views/menu_view.php などで使用 */
+/* ===== 共通UI要素 ===== */
+
+/* メニュー画面のカード内でアイコンを表示する場合のスタイル */
 .card-icon {
     font-size: 3rem;        /* アイコンの基本サイズ */
     text-align: center;     /* アイコンをカード内で水平中央に配置 */
     margin-bottom: 0.5rem;  /* アイコンとカードタイトルの間の余白 */
-    color: #0d6efd;         /* アイコンの基本色 (例: Bootstrap の primary 色) - 適宜変更可 */
+    color: #0d6efd;         /* アイコンの基本色 (Bootstrap の primary 色) */
 }
 
-/* --- アプリケーション全体で共通のその他のスタイルをここに追加できます --- */
+/* ===== 共通ボタンスタイル ===== */
 
-/* 例: 特定のボタンのスタイルを上書きする場合 */
-/*
 .btn-custom-action {
     background-color: #ffc107;
     border-color: #ffc107;
     color: #000;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-weight: 500;
+    transition: all 0.2s ease;
 }
 
 .btn-custom-action:hover {
     background-color: #e0a800;
     border-color: #d39e00;
+    color: #000;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-*/
+
+/* ===== 共通テーブルスタイル ===== */
+
+.table-custom {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.table-custom th {
+    background-color: #495057;
+    color: white;
+    font-weight: 600;
+    border: none;
+}
+
+.table-custom td {
+    border-color: #dee2e6;
+}
+
+.table-custom tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* ===== 共通アラート・メッセージスタイル ===== */
+
+.alert-custom {
+    border-radius: 8px;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.alert-custom .alert-heading {
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+/* ===== 共通レスポンシブ対応 ===== */
+
+@media (max-width: 576px) {
+    .main-with-navbar {
+        padding-top: 60px;
+    }
+    
+    .card-icon {
+        font-size: 2.5rem;
+    }
+    
+    .btn-custom-action {
+        padding: 6px 12px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 768px) {
+    .table-custom {
+        font-size: 14px;
+    }
+    
+    .table-custom th,
+    .table-custom td {
+        padding: 8px;
+    }
+}

@@ -12,7 +12,7 @@
         <div class="col">
             <div class="card-modern h-100">
                 <div class="card-body text-center">
-                    <div class="card-icon text-primary">
+                    <div class="card-icon">
                         <i class="bi bi-graph-up-arrow"></i>
                     </div>
                     <h5 class="card-title">単品分析</h5>

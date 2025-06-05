@@ -39,7 +39,7 @@
         </div>
     <?php endif; ?>
 
-    <!-- 改善されたヘッダー情報 -->
+    <!-- ヘッダー情報 -->
     <div class="header-section">
         <h2 class="page-title">商品販売分析 - 単品集計表</h2>
         
