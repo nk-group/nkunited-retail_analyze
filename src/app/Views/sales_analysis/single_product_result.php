@@ -86,8 +86,8 @@
             
             <div class="metric-item">
                 <span class="metric-icon">🏪</span>
-                <span class="metric-label">定価:</span>
-                <span class="metric-value price">¥<?= number_format($formatted_result['header_info']['selling_price']) ?></span>
+                <span class="metric-label">M単価:</span>
+                <span class="metric-value price">¥<?= number_format($formatted_result['header_info']['m_unit_price']) ?></span>
             </div>
             
             <?php if ($formatted_result['header_info']['deletion_scheduled_date']): ?>
@@ -102,42 +102,65 @@
 
     <!-- サマリー情報 -->
     <div class="summary-section">
+        <!-- 1. 仕入原価合計 -->
         <div class="summary-card">
             <h4>仕入原価合計</h4>
             <div class="value">¥<?= number_format($formatted_result['summary_info']['total_purchase_cost']) ?></div>
         </div>
+        
+        <!-- 2. 売上合計 -->
         <div class="summary-card">
             <h4>売上合計</h4>
             <div class="value">¥<?= number_format($formatted_result['summary_info']['total_sales_amount']) ?></div>
         </div>
+        
+        <!-- 3. 粗利合計 -->
         <div class="summary-card">
             <h4>粗利合計</h4>
             <div class="value <?= $formatted_result['summary_info']['total_gross_profit'] >= 0 ? 'recovery-rate' : 'recovery-rate danger' ?>">
                 ¥<?= number_format($formatted_result['summary_info']['total_gross_profit']) ?>
             </div>
         </div>
+        
+        <!-- 4. 原価回収率 -->
         <div class="summary-card">
             <h4>原価回収率</h4>
             <div class="value <?= $formatted_result['summary_info']['recovery_rate'] >= 100 ? 'recovery-rate' : ($formatted_result['summary_info']['recovery_rate'] >= 70 ? 'recovery-rate warning' : 'recovery-rate danger') ?>">
                 <?= number_format($formatted_result['summary_info']['recovery_rate'], 1) ?>%
             </div>
         </div>
+        
+        <!-- 5. 総仕入数 -->
         <div class="summary-card">
-            <h4>残在庫数</h4>
-            <div class="value"><?= number_format($formatted_result['summary_info']['current_stock_qty']) ?>個</div>
+            <h4>総仕入数</h4>
+            <div class="value"><?= number_format($formatted_result['summary_info']['total_purchase_qty']) ?>個</div>
         </div>
-        <div class="summary-card">
-            <h4>残在庫原価</h4>
-            <div class="value">¥<?= number_format($formatted_result['summary_info']['current_stock_value']) ?></div>
-        </div>
+        
+        <!-- 6. 総販売数 -->
         <div class="summary-card">
             <h4>総販売数</h4>
             <div class="value"><?= number_format($formatted_result['summary_info']['total_sales_qty']) ?>個</div>
         </div>
+        
+        <!-- 7. 残在庫数 -->
         <div class="summary-card">
-            <h4>定価</h4>
-            <div class="value">¥<?= number_format($formatted_result['summary_info']['selling_price']) ?></div>
+            <h4>残在庫数</h4>
+            <div class="value"><?= number_format($formatted_result['summary_info']['current_stock_qty']) ?>個</div>
         </div>
+        
+        <!-- 8. 残在庫原価 -->
+        <div class="summary-card">
+            <h4>残在庫原価</h4>
+            <div class="value">¥<?= number_format($formatted_result['summary_info']['current_stock_value']) ?></div>
+        </div>
+        
+        <!-- 9. M単価 -->
+        <div class="summary-card">
+            <h4>M単価</h4>
+            <div class="value">¥<?= number_format($formatted_result['summary_info']['m_unit_price']) ?></div>
+        </div>
+        
+        <!-- 10. 集計対象商品 -->
         <div class="summary-card clickable" onclick="showProductModal()">
             <h4>集計対象商品</h4>
             <div class="value"><?= count($analysis_result['basic_info']['jan_details'] ?? []) ?>個のSKU</div>
@@ -194,7 +217,7 @@
         </div>
     </div>
 
-    <!-- 週別販売推移（拡張版） -->
+    <!-- 週別販売推移 -->
     <div class="analysis-table">
         <h3 class="table-header"><i class="bi bi-calendar-week me-2"></i>週別販売推移</h3>
         <div style="overflow-x: auto;">
@@ -217,7 +240,7 @@
                 <tbody>
                     <?php if (!empty($formatted_result['weekly_data'])): ?>
                         <?php foreach ($formatted_result['weekly_data'] as $week): ?>
-                            <tr class="<?= $week['has_returns'] ? 'negative-sales' : ($week['week_number'] <= 2 ? 'best-seller' : ($week['avg_price'] < $formatted_result['summary_info']['selling_price'] * 0.95 ? 'price-change' : '')) ?>">
+                            <tr class="<?= $week['has_returns'] ? 'negative-sales' : ($week['week_number'] <= 2 ? 'best-seller' : ($week['avg_price'] < $formatted_result['summary_info']['m_unit_price'] * 0.95 ? 'price-change' : '')) ?>">
                                 <td><?= $week['week_number'] ?>週目</td>
                                 <td class="text-left"><?= esc($week['period']) ?></td>
                                 <td><?= number_format($week['sales_qty']) ?></td>
@@ -305,7 +328,7 @@
         </table>
     </div>
 
-    <!-- 伝票詳細情報（折りたたみ式）【新規追加】 -->
+    <!-- 伝票詳細情報（折りたたみ式） -->
     <div class="analysis-table">
         <h3 class="table-header">
             <span><i class="bi bi-receipt me-2"></i>伝票情報詳細</span>
@@ -347,6 +370,7 @@
                                 <thead>
                                     <tr>
                                         <th>日付</th>
+                                        <th>伝票番号</th>
                                         <th>店舗</th>
                                         <th>仕入先</th>
                                         <th>数量</th>
@@ -360,6 +384,7 @@
                                         <?php foreach ($formatted_result['slip_details']['purchase_slips'] as $slip): ?>
                                             <tr>
                                                 <td><?= esc($slip['date']) ?></td>
+                                                <td><?= esc($slip['slip_number']) ?></td>
                                                 <td><?= esc($slip['store']) ?></td>
                                                 <td><?= esc($slip['supplier']) ?></td>
                                                 <td class="<?= $slip['quantity'] > 0 ? 'text-success' : 'text-danger' ?>">
@@ -372,7 +397,7 @@
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="7" class="text-center text-muted">仕入データがありません</td>
+                                            <td colspan="8" class="text-center text-muted">仕入データがありません</td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
@@ -387,6 +412,7 @@
                                 <thead>
                                     <tr>
                                         <th>日付</th>
+                                        <th>伝票番号</th>
                                         <th>店舗</th>
                                         <th>調整種別</th>
                                         <th>数量</th>
@@ -399,6 +425,7 @@
                                         <?php foreach ($formatted_result['slip_details']['adjustment_slips'] as $slip): ?>
                                             <tr>
                                                 <td><?= esc($slip['date']) ?></td>
+                                                <td><?= esc($slip['slip_number']) ?></td>
                                                 <td><?= esc($slip['store']) ?></td>
                                                 <td><?= esc($slip['type']) ?></td>
                                                 <td class="<?= $slip['quantity'] > 0 ? 'text-success' : 'text-danger' ?>">
@@ -410,7 +437,7 @@
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted">調整データがありません</td>
+                                            <td colspan="7" class="text-center text-muted">調整データがありません</td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
@@ -425,6 +452,7 @@
                                 <thead>
                                     <tr>
                                         <th>日付</th>
+                                        <th>伝票番号</th>
                                         <th>移動種別</th>
                                         <th>振出店</th>
                                         <th>受入店</th>
@@ -435,8 +463,9 @@
                                 <tbody>
                                     <?php if (!empty($formatted_result['slip_details']['transfer_slips'])): ?>
                                         <?php foreach ($formatted_result['slip_details']['transfer_slips'] as $slip): ?>
-                                            <tr>
+                                            <tr class="<?= $slip['is_initial_delivery'] ? 'table-success' : '' ?>">
                                                 <td><?= esc($slip['date']) ?></td>
+                                                <td><?= esc($slip['slip_number']) ?></td>
                                                 <td><?= esc($slip['type']) ?></td>
                                                 <td><?= esc($slip['source_store']) ?></td>
                                                 <td><?= esc($slip['destination_store']) ?></td>
@@ -446,7 +475,7 @@
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted">移動データがありません</td>
+                                            <td colspan="7" class="text-center text-muted">移動データがありません</td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
@@ -507,7 +536,7 @@ $this->setData([
 <?= $this->section('scripts') ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('単品分析結果画面（拡張版）が読み込まれました');
+    console.log('単品分析結果画面が読み込まれました');
     console.log('実行時間: <?= $execution_time ?? 0 ?>秒');
     
     // 折りたたみボタンのアイコン切り替え

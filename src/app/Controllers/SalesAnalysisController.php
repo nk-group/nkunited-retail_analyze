@@ -148,9 +148,13 @@ class SalesAnalysisController extends BaseController
         return view('sales_analysis/single_product_result', $data);
     }
 
-
     /**
      * 分析結果を画面表示用に整形（拡張版）
+     * 
+     * 【修正内容】
+     * - 定価の定義をselling_price→m_unit_priceに変更
+     * - サマリー部に総仕入数を追加
+     * - サマリー部の並び順変更
      * 
      * 【新機能追加】
      * - 残在庫数の表示
@@ -177,22 +181,36 @@ class SalesAnalysisController extends BaseController
             'first_transfer_date' => $transferInfo['first_transfer_date'],
             'days_since_transfer' => $this->calculateDaysSince($transferInfo['first_transfer_date']),
             'deletion_scheduled_date' => $basicInfo['product_info']['deletion_scheduled_date'] ?? null,
-            'selling_price' => $basicInfo['product_info']['selling_price'],
+            // 【修正】定価の定義をM単価に変更
+            'm_unit_price' => $basicInfo['product_info']['avg_selling_price'] ?? 0, // M単価の平均値
             'avg_cost_price' => $purchaseInfo['avg_cost_price'],
             'is_fallback_date' => $transferInfo['is_fallback']
         ];
         
         // サマリー情報の整形
+        // 【修正】サマリー部の並び順変更と総仕入数追加
         $lastWeek = !empty($weeklyAnalysis) ? end($weeklyAnalysis) : null;
         $summaryInfo = [
+            // 1. 仕入原価合計
             'total_purchase_cost' => $purchaseInfo['total_purchase_cost'],
+            // 2. 売上合計
             'total_sales_amount' => $lastWeek['cumulative_sales_amount'] ?? 0,
+            // 3. 粗利合計
             'total_gross_profit' => $lastWeek['cumulative_gross_profit'] ?? 0,
+            // 4. 原価回収率
             'recovery_rate' => $lastWeek['recovery_rate'] ?? 0,
-            'current_stock_qty' => $currentStock['current_stock_qty'],
-            'current_stock_value' => $currentStock['current_stock_value'],
+            // 5. 総仕入数【新規追加】
+            'total_purchase_qty' => $purchaseInfo['total_purchase_qty'],
+            // 6. 総販売数
             'total_sales_qty' => $lastWeek['cumulative_sales_qty'] ?? 0,
-            'selling_price' => $basicInfo['product_info']['selling_price']
+            // 7. 残在庫数
+            'current_stock_qty' => $currentStock['current_stock_qty'],
+            // 8. 残在庫原価
+            'current_stock_value' => $currentStock['current_stock_value'],
+            // 9. 定価【修正】M単価に変更
+            'm_unit_price' => $headerInfo['m_unit_price'],
+            // 10. 集計対象商品（既存）
+            'target_products_count' => count($basicInfo['jan_details'] ?? [])
         ];
         
         // 週別データの整形（拡張版）
@@ -209,7 +227,8 @@ class SalesAnalysisController extends BaseController
                 'cumulative_profit' => $week['cumulative_gross_profit'],
                 'recovery_rate' => $week['recovery_rate'],
                 'remaining_stock' => $week['remaining_stock'], // 新規追加
-                'remarks' => $this->generateWeekRemarksExtended($week, $basicInfo['product_info']['selling_price']), // 拡張版
+                // 【修正】M単価ベースでの備考生成
+                'remarks' => $this->generateWeekRemarksExtended($week, $headerInfo['m_unit_price']), // 拡張版
                 'has_returns' => $week['has_returns'],
                 'return_qty' => $week['return_qty'],
                 'purchase_events' => $week['purchase_events'], // 新規追加
@@ -219,7 +238,8 @@ class SalesAnalysisController extends BaseController
         }
         
         // 売価別販売状況の生成（簡易版）
-        $priceBreakdown = $this->generatePriceBreakdown($weeklyAnalysis, $basicInfo['product_info']['selling_price']);
+        // 【修正】M単価ベースでの計算
+        $priceBreakdown = $this->generatePriceBreakdown($weeklyAnalysis, $headerInfo['m_unit_price']);
         
         // 推奨アクションの整形
         $formattedRecommendation = [
@@ -249,25 +269,27 @@ class SalesAnalysisController extends BaseController
     /**
      * 週別備考の生成（拡張版）
      * 
+     * 【修正】M単価ベースでの値引き率計算に変更
+     * 
      * 【新機能追加】
      * - 仕入イベントの表示（数量付き）
      * - 調整イベントの表示（数量付き）
      * - 移動イベントの表示（数量なし）
      * - 絵文字を活用した視覚的表示
      */
-    private function generateWeekRemarksExtended(array $week, float $sellingPrice): string
+    private function generateWeekRemarksExtended(array $week, float $mUnitPrice): string
     {
         $remarks = [];
         
-        // 価格変動の検出（絵文字付き）
-        if ($week['avg_sales_price'] < $sellingPrice * 0.95) {
-            $discountRate = round((1 - $week['avg_sales_price'] / $sellingPrice) * 100);
+        // 【修正】M単価ベースでの価格変動検出（絵文字付き）
+        if ($week['avg_sales_price'] < $mUnitPrice * 0.95) {
+            $discountRate = round((1 - $week['avg_sales_price'] / $mUnitPrice) * 100);
             if ($discountRate >= 50) {
                 $remarks[] = "🔥 {$discountRate}%値引";
             } else {
                 $remarks[] = "💰 {$discountRate}%値引";
             }
-        } elseif ($week['avg_sales_price'] >= $sellingPrice * 0.95) {
+        } elseif ($week['avg_sales_price'] >= $mUnitPrice * 0.95) {
             $remarks[] = '🏪 定価販売';
         }
         
@@ -342,6 +364,8 @@ class SalesAnalysisController extends BaseController
     /**
      * 伝票詳細情報の整形（新規追加）
      * 
+     * 【修正】各伝票に伝票番号を追加表示
+     * 
      * @param array $slipDetails 伝票詳細データ
      * @return array 整形済み伝票詳細
      */
@@ -361,6 +385,8 @@ class SalesAnalysisController extends BaseController
     
     /**
      * 仕入伝票の整形
+     * 
+     * 【修正】伝票番号を追加
      */
     private function formatPurchaseSlips(array $purchaseSlips): array
     {
@@ -368,9 +394,10 @@ class SalesAnalysisController extends BaseController
         foreach ($purchaseSlips as $slip) {
             $formatted[] = [
                 'date' => $slip['purchase_date'],
+                'slip_number' => $slip['slip_number'], // 【追加】伝票番号
                 'store' => $slip['store_name'] ?: '本部DC',
                 'supplier' => $slip['supplier_name'] ?: '-',
-                'quantity' => $slip['total_quantity'], // 修正: これは正しい
+                'quantity' => $slip['total_quantity'],
                 'unit_price' => $slip['avg_cost_price'],
                 'amount' => $slip['total_amount'],
                 'type' => $slip['slip_type'],
@@ -380,10 +407,10 @@ class SalesAnalysisController extends BaseController
         return $formatted;
     }
 
-
-
     /**
      * 調整伝票の整形
+     * 
+     * 【修正】伝票番号を追加
      */
     private function formatAdjustmentSlips(array $adjustmentSlips): array
     {
@@ -391,6 +418,7 @@ class SalesAnalysisController extends BaseController
         foreach ($adjustmentSlips as $slip) {
             $formatted[] = [
                 'date' => $slip['adjustment_date'],
+                'slip_number' => $slip['slip_number'], // 【追加】伝票番号
                 'store' => $slip['store_name'] ?: '-',
                 'type' => $slip['adjustment_type'] ?: '-',
                 'quantity' => $slip['total_quantity'],
@@ -403,6 +431,8 @@ class SalesAnalysisController extends BaseController
     
     /**
      * 移動伝票の整形
+     * 
+     * 【修正】伝票番号を追加、品出し判定による色分け情報追加
      */
     private function formatTransferSlips(array $transferSlips): array
     {
@@ -410,11 +440,13 @@ class SalesAnalysisController extends BaseController
         foreach ($transferSlips as $slip) {
             $formatted[] = [
                 'date' => $slip['transfer_date'],
+                'slip_number' => $slip['slip_number'], // 【追加】伝票番号
                 'type' => $slip['transfer_type'],
                 'source_store' => $slip['source_store_name'],
                 'destination_store' => $slip['destination_store_name'],
                 'quantity' => $slip['total_quantity'],
-                'remarks' => $this->getTransferRemarks($slip)
+                'remarks' => $this->getTransferRemarks($slip),
+                'is_initial_delivery' => $slip['is_initial_delivery'] // 【追加】品出し判定フラグ
             ];
         }
         return $formatted;
@@ -425,7 +457,6 @@ class SalesAnalysisController extends BaseController
      */
     private function getPurchaseRemarks(array $slip): string
     {
-        // 修正: 'quantity' → 'total_quantity' に変更
         if ($slip['total_quantity'] > 500) {
             return '大量仕入';
         } elseif (strpos($slip['supplier_name'], '緊急') !== false) {
@@ -448,7 +479,6 @@ class SalesAnalysisController extends BaseController
             return '店舗間移動';
         }
     }
-
 
     /**
      * 経過日数計算
@@ -493,8 +523,10 @@ class SalesAnalysisController extends BaseController
 
     /**
      * 売価別販売状況の生成（簡易版）
+     * 
+     * 【修正】M単価ベースでの値引き率計算
      */
-    private function generatePriceBreakdown(array $weeklyAnalysis, float $sellingPrice): array
+    private function generatePriceBreakdown(array $weeklyAnalysis, float $mUnitPrice): array
     {
         $priceGroups = [];
         $totalSales = 0;
@@ -524,7 +556,8 @@ class SalesAnalysisController extends BaseController
         $formattedPriceBreakdown = [];
         foreach ($priceGroups as $group) {
             $ratio = $totalSales > 0 ? ($group['quantity'] / $totalSales) * 100 : 0;
-            $discountRate = $sellingPrice > 0 ? (1 - $group['price'] / $sellingPrice) * 100 : 0;
+            // 【修正】M単価ベースでの値引き率計算
+            $discountRate = $mUnitPrice > 0 ? (1 - $group['price'] / $mUnitPrice) * 100 : 0;
             
             $formattedPriceBreakdown[] = [
                 'price' => $group['price'],
