@@ -148,8 +148,14 @@ class SalesAnalysisController extends BaseController
         return view('sales_analysis/single_product_result', $data);
     }
 
+
     /**
-     * 分析結果を画面表示用に整形
+     * 分析結果を画面表示用に整形（拡張版）
+     * 
+     * 【新機能追加】
+     * - 残在庫数の表示
+     * - 週別イベント情報の備考生成
+     * - 伝票詳細情報の整形
      */
     private function formatAnalysisResult(array $analysisResult): array
     {
@@ -159,6 +165,7 @@ class SalesAnalysisController extends BaseController
         $recommendation = $analysisResult['recommendation'];
         $purchaseInfo = $analysisResult['purchase_info'];
         $transferInfo = $analysisResult['transfer_info'];
+        $slipDetails = $analysisResult['slip_details']; // 新規追加
         
         // ヘッダー情報の整形
         $headerInfo = [
@@ -188,7 +195,7 @@ class SalesAnalysisController extends BaseController
             'selling_price' => $basicInfo['product_info']['selling_price']
         ];
         
-        // 週別データの整形（表示用）
+        // 週別データの整形（拡張版）
         $formattedWeeklyData = [];
         foreach ($weeklyAnalysis as $week) {
             $formattedWeeklyData[] = [
@@ -201,9 +208,13 @@ class SalesAnalysisController extends BaseController
                 'cumulative_sales' => $week['cumulative_sales_qty'],
                 'cumulative_profit' => $week['cumulative_gross_profit'],
                 'recovery_rate' => $week['recovery_rate'],
-                'remarks' => $this->generateWeekRemarks($week, $basicInfo['product_info']['selling_price']),
+                'remaining_stock' => $week['remaining_stock'], // 新規追加
+                'remarks' => $this->generateWeekRemarksExtended($week, $basicInfo['product_info']['selling_price']), // 拡張版
                 'has_returns' => $week['has_returns'],
-                'return_qty' => $week['return_qty']
+                'return_qty' => $week['return_qty'],
+                'purchase_events' => $week['purchase_events'], // 新規追加
+                'adjustment_events' => $week['adjustment_events'], // 新規追加
+                'transfer_events' => $week['transfer_events'] // 新規追加
             ];
         }
         
@@ -222,14 +233,222 @@ class SalesAnalysisController extends BaseController
             'recovery_achieved' => $recommendation['recovery_achieved']
         ];
         
+        // 伝票詳細情報の整形（新規追加）
+        $formattedSlipDetails = $this->formatSlipDetails($slipDetails);
+        
         return [
             'header_info' => $headerInfo,
             'summary_info' => $summaryInfo,
             'weekly_data' => $formattedWeeklyData,
             'price_breakdown' => $priceBreakdown,
-            'recommendation' => $formattedRecommendation
+            'recommendation' => $formattedRecommendation,
+            'slip_details' => $formattedSlipDetails // 新規追加
         ];
     }
+
+    /**
+     * 週別備考の生成（拡張版）
+     * 
+     * 【新機能追加】
+     * - 仕入イベントの表示（数量付き）
+     * - 調整イベントの表示（数量付き）
+     * - 移動イベントの表示（数量なし）
+     * - 絵文字を活用した視覚的表示
+     */
+    private function generateWeekRemarksExtended(array $week, float $sellingPrice): string
+    {
+        $remarks = [];
+        
+        // 価格変動の検出（絵文字付き）
+        if ($week['avg_sales_price'] < $sellingPrice * 0.95) {
+            $discountRate = round((1 - $week['avg_sales_price'] / $sellingPrice) * 100);
+            if ($discountRate >= 50) {
+                $remarks[] = "🔥 {$discountRate}%値引";
+            } else {
+                $remarks[] = "💰 {$discountRate}%値引";
+            }
+        } elseif ($week['avg_sales_price'] >= $sellingPrice * 0.95) {
+            $remarks[] = '🏪 定価販売';
+        }
+        
+        // 回収率の節目
+        if ($week['recovery_rate'] >= 100) {
+            $remarks[] = '✅ 原価回収達成';
+        }
+        
+        // 返品発生
+        if ($week['has_returns']) {
+            $remarks[] = '↩️ 返品発生';
+        }
+        
+        // 売れ行き状況
+        if ($week['weekly_sales_qty'] <= 0) {
+            $remarks[] = '📉 販売停滞';
+        }
+        
+        // 在庫状況
+        if ($week['remaining_stock'] <= 5 && $week['remaining_stock'] > 0) {
+            $remarks[] = '⚠️ 在庫僅少';
+        } elseif ($week['remaining_stock'] <= 0) {
+            $remarks[] = '✅ 完売';
+        }
+        
+        // イベント情報の追加（新規機能）
+        $eventBadges = $this->generateEventBadges($week);
+        if (!empty($eventBadges)) {
+            $remarks = array_merge($remarks, $eventBadges);
+        }
+        
+        return implode('、', $remarks) ?: '-';
+    }
+
+    /**
+     * イベントバッジの生成（新規追加）
+     * 
+     * 仕入・調整・移動の各イベントをバッジ形式で生成
+     * 
+     * @param array $week 週別データ
+     * @return array イベントバッジ配列
+     */
+    private function generateEventBadges(array $week): array
+    {
+        $badges = [];
+        
+        // 仕入イベント（数量付き）
+        if (!empty($week['purchase_events'])) {
+            $totalPurchase = array_sum(array_column($week['purchase_events'], 'quantity'));
+            if ($totalPurchase > 0) {
+                $badges[] = "📦 仕入+{$totalPurchase}";
+            }
+        }
+        
+        // 調整イベント（数量付き）
+        if (!empty($week['adjustment_events'])) {
+            $totalAdjustment = array_sum(array_column($week['adjustment_events'], 'quantity'));
+            if ($totalAdjustment != 0) {
+                $sign = $totalAdjustment > 0 ? '+' : '';
+                $badges[] = "⚖️ 調整{$sign}{$totalAdjustment}";
+            }
+        }
+        
+        // 移動イベント（数量なし）
+        if (!empty($week['transfer_events'])) {
+            $badges[] = "🚚 移動";
+        }
+        
+        return $badges;
+    }
+    
+    /**
+     * 伝票詳細情報の整形（新規追加）
+     * 
+     * @param array $slipDetails 伝票詳細データ
+     * @return array 整形済み伝票詳細
+     */
+    private function formatSlipDetails(array $slipDetails): array
+    {
+        return [
+            'purchase_slips' => $this->formatPurchaseSlips($slipDetails['purchase_slips']),
+            'adjustment_slips' => $this->formatAdjustmentSlips($slipDetails['adjustment_slips']),
+            'transfer_slips' => $this->formatTransferSlips($slipDetails['transfer_slips']),
+            'summary' => [
+                'purchase_count' => count($slipDetails['purchase_slips']),
+                'adjustment_count' => count($slipDetails['adjustment_slips']),
+                'transfer_count' => count($slipDetails['transfer_slips'])
+            ]
+        ];
+    }
+    
+    /**
+     * 仕入伝票の整形
+     */
+    private function formatPurchaseSlips(array $purchaseSlips): array
+    {
+        $formatted = [];
+        foreach ($purchaseSlips as $slip) {
+            $formatted[] = [
+                'date' => $slip['purchase_date'],
+                'store' => $slip['store_name'] ?: '本部DC',
+                'supplier' => $slip['supplier_name'] ?: '-',
+                'quantity' => $slip['total_quantity'], // 修正: これは正しい
+                'unit_price' => $slip['avg_cost_price'],
+                'amount' => $slip['total_amount'],
+                'type' => $slip['slip_type'],
+                'remarks' => $this->getPurchaseRemarks($slip)
+            ];
+        }
+        return $formatted;
+    }
+
+
+
+    /**
+     * 調整伝票の整形
+     */
+    private function formatAdjustmentSlips(array $adjustmentSlips): array
+    {
+        $formatted = [];
+        foreach ($adjustmentSlips as $slip) {
+            $formatted[] = [
+                'date' => $slip['adjustment_date'],
+                'store' => $slip['store_name'] ?: '-',
+                'type' => $slip['adjustment_type'] ?: '-',
+                'quantity' => $slip['total_quantity'],
+                'reason' => $slip['adjustment_reason_name'] ?: '-',
+                'staff' => $slip['staff_name'] ?: '-'
+            ];
+        }
+        return $formatted;
+    }
+    
+    /**
+     * 移動伝票の整形
+     */
+    private function formatTransferSlips(array $transferSlips): array
+    {
+        $formatted = [];
+        foreach ($transferSlips as $slip) {
+            $formatted[] = [
+                'date' => $slip['transfer_date'],
+                'type' => $slip['transfer_type'],
+                'source_store' => $slip['source_store_name'],
+                'destination_store' => $slip['destination_store_name'],
+                'quantity' => $slip['total_quantity'],
+                'remarks' => $this->getTransferRemarks($slip)
+            ];
+        }
+        return $formatted;
+    }
+    
+    /**
+     * 仕入備考生成
+     */
+    private function getPurchaseRemarks(array $slip): string
+    {
+        // 修正: 'quantity' → 'total_quantity' に変更
+        if ($slip['total_quantity'] > 500) {
+            return '大量仕入';
+        } elseif (strpos($slip['supplier_name'], '緊急') !== false) {
+            return '緊急仕入';
+        } elseif ($slip['slip_type'] === '返品') {
+            return '仕入返品';
+        } else {
+            return $slip['slip_type'] === '仕入' ? '通常仕入' : '追加仕入';
+        }
+    }
+
+    /**
+     * 移動備考生成
+     */
+    private function getTransferRemarks(array $slip): string
+    {
+        if ($slip['source_store_name'] === '本部DC' || strpos($slip['source_store_name'], 'DC') !== false) {
+            return '店舗配送';
+        } else {
+            return '店舗間移動';
+        }
+    }
+
 
     /**
      * 経過日数計算

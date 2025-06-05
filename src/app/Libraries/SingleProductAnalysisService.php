@@ -92,6 +92,7 @@ class SingleProductAnalysisService
      *               - current_stock: 現在庫情報
      *               - recommendation: 推奨アクション
      *               - warnings: 警告情報
+     *               - slip_details: 伝票詳細情報（新規追加）
      *               - execution_time: 実行時間
      *               - analysis_date: 分析実行日時
      * @throws SingleProductAnalysisException 分析処理中にエラーが発生した場合
@@ -115,8 +116,13 @@ class SingleProductAnalysisService
             // 4. 週別販売データ取得
             $weeklySales = $this->getWeeklySales($basicInfo['jan_codes'], $transferInfo['first_transfer_date']);
             
-            // 5. 週別データの統合・計算
-            $weeklyAnalysis = $this->calculateWeeklyAnalysis($weeklySales, $purchaseInfo, $transferInfo['first_transfer_date']);
+            // 5. 週別データの統合・計算（拡張版に変更）
+            $weeklyAnalysis = $this->calculateWeeklyAnalysisExtended(
+                $weeklySales, 
+                $purchaseInfo, 
+                $transferInfo['first_transfer_date'],
+                $basicInfo['jan_codes']
+            );
             
             // 6. 現在庫計算
             $currentStock = $this->calculateCurrentStock($basicInfo['jan_codes'], $purchaseInfo, $weeklyAnalysis);
@@ -126,6 +132,9 @@ class SingleProductAnalysisService
             
             // 8. 警告情報の収集
             $warnings = $this->collectWarnings($transferInfo, $purchaseInfo, $weeklyAnalysis);
+            
+            // 9. 伝票詳細情報の取得（新規追加）
+            $slipDetails = $this->getSlipDetails($basicInfo['jan_codes']);
             
             $executionTime = microtime(true) - $startTime;
             log_message('info', "単品分析完了: {$executionTime}秒");
@@ -138,6 +147,7 @@ class SingleProductAnalysisService
                 'current_stock' => $currentStock,
                 'recommendation' => $recommendation,
                 'warnings' => $warnings,
+                'slip_details' => $slipDetails, // 新規追加
                 'execution_time' => $executionTime,
                 'analysis_date' => date('Y-m-d H:i:s')
             ];
@@ -379,7 +389,7 @@ class SingleProductAnalysisService
             'pre_purchase_sales' => $prePurchaseSales
         ];
     }
-    
+
     /**
      * 仕入前売上のチェック
      * 
@@ -552,17 +562,21 @@ class SingleProductAnalysisService
         return array_values($weeklyData);
     }
 
-    
     /**
-     * 週別分析データの計算（累計値、粗利、回収率）
+     * 週別分析データの計算（累計値、粗利、回収率）- 拡張版
      * 
      * 週別販売データから累計値、週別粗利、累計粗利、原価回収率を算出する。
      * 各週の粗利は (平均売価 - 平均原価) × 販売数量 で計算。
      * 回収率は累計売上金額 ÷ 総仕入金額 × 100 で算出（売上金額ベース）。
      * 
+     * 【拡張機能】
+     * - 残在庫数の計算
+     * - 週別イベント情報（仕入・調整・移動）の取得
+     * 
      * @param array $weeklySales 週別販売データ配列
      * @param array $purchaseInfo 仕入情報配列
      * @param string $baseDate 基準日（品出し日）
+     * @param array $janCodes 対象JANコード配列
      * @return array 週別分析データ配列
      *               - week_number: 週番号
      *               - week_start: 週開始日
@@ -580,20 +594,31 @@ class SingleProductAnalysisService
      *               - return_count: 返品件数
      *               - return_qty: 返品数量
      *               - has_returns: 返品発生フラグ
+     *               - remaining_stock: 残在庫数（新規追加）
+     *               - purchase_events: 週別仕入イベント（新規追加）
+     *               - adjustment_events: 週別調整イベント（新規追加）
+     *               - transfer_events: 週別移動イベント（新規追加）
      */
-    protected function calculateWeeklyAnalysis(array $weeklySales, array $purchaseInfo, string $baseDate): array
-    {
+    protected function calculateWeeklyAnalysisExtended(
+        array $weeklySales, 
+        array $purchaseInfo, 
+        string $baseDate,
+        array $janCodes
+    ): array {
         $analysis = [];
         $cumulativeSales = 0;
         $cumulativeAmount = 0;
         $cumulativeGrossProfit = 0;
         
-        foreach ($weeklySales as $week) {
+        // 週別イベント情報を事前取得
+        $weeklyEvents = $this->getWeeklyEvents($janCodes, $baseDate, count($weeklySales));
+        
+        foreach ($weeklySales as $index => $week) {
             // 累計計算
             $cumulativeSales += $week['weekly_sales_qty'];
             $cumulativeAmount += $week['weekly_sales_amount'];
             
-            // 週別粗利計算（表示用）
+            // 週別粗利計算
             $weeklyGrossProfit = $week['weekly_sales_qty'] * 
                 (($week['avg_sales_price'] ?? 0) - $purchaseInfo['avg_cost_price']);
             $cumulativeGrossProfit += $weeklyGrossProfit;
@@ -605,6 +630,17 @@ class SingleProductAnalysisService
             
             // 経過日数計算
             $daysSinceStart = (strtotime($week['week_end']) - strtotime($baseDate)) / 86400;
+            
+            // 残在庫計算（新規追加）
+            $remainingStock = $this->calculateRemainingStockByWeek(
+                $purchaseInfo['total_purchase_qty'],
+                $cumulativeSales,
+                $weeklyEvents,
+                $week['week_number']
+            );
+            
+            // 週別イベント取得
+            $weekEvents = $weeklyEvents[$week['week_number']] ?? [];
             
             $analysis[] = [
                 'week_number' => (int)$week['week_number'],
@@ -622,14 +658,275 @@ class SingleProductAnalysisService
                 'transaction_count' => (int)$week['transaction_count'],
                 'return_count' => (int)$week['return_count'],
                 'return_qty' => (int)($week['return_qty'] ?? 0),
-                'has_returns' => (int)$week['return_count'] > 0
+                'has_returns' => (int)$week['return_count'] > 0,
+                'remaining_stock' => (int)$remainingStock, // 新規追加
+                'purchase_events' => $weekEvents['purchase'] ?? [], // 新規追加
+                'adjustment_events' => $weekEvents['adjustment'] ?? [], // 新規追加
+                'transfer_events' => $weekEvents['transfer'] ?? [] // 新規追加
             ];
         }
         
         return $analysis;
     }
-
-
+    
+    /**
+     * 週別の残在庫計算
+     * 
+     * 指定週時点での残在庫数を計算する。
+     * 計算式：総仕入数量 + 調整数量累計 - 累計販売数量
+     * 
+     * @param int $totalPurchase 総仕入数量
+     * @param int $cumulativeSales 累計販売数量（指定週まで）
+     * @param array $weeklyEvents 週別イベント情報
+     * @param int $weekNumber 計算対象週番号
+     * @return int 残在庫数
+     */
+    protected function calculateRemainingStockByWeek(
+        int $totalPurchase,
+        int $cumulativeSales,
+        array $weeklyEvents,
+        int $weekNumber
+    ): int {
+        $stock = $totalPurchase;
+        
+        // 指定週までの調整数量を累計
+        for ($w = 1; $w <= $weekNumber; $w++) {
+            if (isset($weeklyEvents[$w]['adjustment'])) {
+                foreach ($weeklyEvents[$w]['adjustment'] as $adj) {
+                    $stock += $adj['quantity']; // 正数は増加、負数は減少
+                }
+            }
+        }
+        
+        // 販売数量を減算
+        $stock -= $cumulativeSales;
+        
+        return max(0, $stock); // 負数は0に調整
+    }
+    
+    /**
+     * 週別イベント情報の取得
+     * 
+     * 仕入・調整・移動の各イベントを週別に分類して取得する。
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @param string $baseDate 基準日
+     * @param int $totalWeeks 総週数
+     * @return array 週別イベント情報配列
+     */
+    protected function getWeeklyEvents(array $janCodes, string $baseDate, int $totalWeeks): array
+    {
+        $events = [];
+        
+        // 仕入イベント
+        $purchaseEvents = $this->getWeeklyPurchaseEvents($janCodes, $baseDate, $totalWeeks);
+        
+        // 調整イベント
+        $adjustmentEvents = $this->getWeeklyAdjustmentEvents($janCodes, $baseDate, $totalWeeks);
+        
+        // 移動イベント
+        $transferEvents = $this->getWeeklyTransferEvents($janCodes, $baseDate, $totalWeeks);
+        
+        // 週別にマージ
+        for ($week = 1; $week <= $totalWeeks; $week++) {
+            $events[$week] = [
+                'purchase' => $purchaseEvents[$week] ?? [],
+                'adjustment' => $adjustmentEvents[$week] ?? [],
+                'transfer' => $transferEvents[$week] ?? []
+            ];
+        }
+        
+        return $events;
+    }
+    
+    /**
+     * 週別仕入イベント取得
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @param string $baseDate 基準日
+     * @param int $totalWeeks 総週数
+     * @return array 週別仕入イベント配列
+     */
+    protected function getWeeklyPurchaseEvents(array $janCodes, string $baseDate, int $totalWeeks): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            purchase_date,
+            SUM(purchase_quantity) as total_quantity,
+            AVG(cost_price) as avg_cost_price
+        FROM purchase_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+          AND purchase_date >= ?
+          AND purchase_quantity > 0
+        GROUP BY purchase_date
+        ORDER BY purchase_date
+        ";
+        
+        $params = array_merge($janCodes, [$baseDate]);
+        $results = $this->db->query($sql, $params)->getResultArray();
+        
+        return $this->mapEventsToWeeks($results, $baseDate, $totalWeeks, 'purchase_date');
+    }
+    
+    /**
+     * 週別調整イベント取得
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @param string $baseDate 基準日
+     * @param int $totalWeeks 総週数
+     * @return array 週別調整イベント配列
+     */
+    protected function getWeeklyAdjustmentEvents(array $janCodes, string $baseDate, int $totalWeeks): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            adjustment_date,
+            SUM(adjustment_quantity) as total_quantity,
+            adjustment_reason_name
+        FROM adjustment_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+          AND adjustment_date >= ?
+        GROUP BY adjustment_date, adjustment_reason_name
+        ORDER BY adjustment_date
+        ";
+        
+        $params = array_merge($janCodes, [$baseDate]);
+        $results = $this->db->query($sql, $params)->getResultArray();
+        
+        return $this->mapEventsToWeeks($results, $baseDate, $totalWeeks, 'adjustment_date');
+    }
+    
+    /**
+     * 週別移動イベント取得
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @param string $baseDate 基準日
+     * @param int $totalWeeks 総週数
+     * @return array 週別移動イベント配列
+     */
+    protected function getWeeklyTransferEvents(array $janCodes, string $baseDate, int $totalWeeks): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            transfer_date,
+            COUNT(*) as event_count,
+            transfer_type
+        FROM transfer_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+          AND transfer_date >= ?
+        GROUP BY transfer_date, transfer_type
+        ORDER BY transfer_date
+        ";
+        
+        $params = array_merge($janCodes, [$baseDate]);
+        $results = $this->db->query($sql, $params)->getResultArray();
+        
+        return $this->mapEventsToWeeks($results, $baseDate, $totalWeeks, 'transfer_date');
+    }
+    
+    /**
+     * イベントを週別にマッピング
+     * 
+     * @param array $events イベントデータ配列
+     * @param string $baseDate 基準日
+     * @param int $totalWeeks 総週数
+     * @param string $dateField 日付フィールド名
+     * @return array 週別イベント配列
+     */
+    protected function mapEventsToWeeks(array $events, string $baseDate, int $totalWeeks, string $dateField): array
+    {
+        $weeklyEvents = [];
+        $baseTimestamp = strtotime($baseDate);
+        
+        foreach ($events as $event) {
+            $eventTimestamp = strtotime($event[$dateField]);
+            $daysDiff = ($eventTimestamp - $baseTimestamp) / 86400;
+            $weekNumber = floor($daysDiff / 7) + 1;
+            
+            if ($weekNumber >= 1 && $weekNumber <= $totalWeeks) {
+                if (!isset($weeklyEvents[$weekNumber])) {
+                    $weeklyEvents[$weekNumber] = [];
+                }
+                
+                // イベント情報を追加
+                $eventData = [
+                    'date' => $event[$dateField],
+                    'quantity' => isset($event['total_quantity']) ? (int)$event['total_quantity'] : 0,
+                    'reason' => $event['adjustment_reason_name'] ?? null,
+                    'type' => $event['transfer_type'] ?? null,
+                    'avg_cost_price' => isset($event['avg_cost_price']) ? (float)$event['avg_cost_price'] : 0
+                ];
+                
+                $weeklyEvents[$weekNumber][] = $eventData;
+            }
+        }
+        
+        return $weeklyEvents;
+    }
+    
+    /**
+     * 伝票詳細情報の取得（新規追加）
+     * 
+     * 分析対象商品の仕入・調整・移動伝票の詳細情報を取得する。
+     * 結果画面での詳細表示に使用。
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @return array 伝票詳細情報配列
+     *               - purchase_slips: 仕入伝票詳細
+     *               - adjustment_slips: 調整伝票詳細
+     *               - transfer_slips: 移動伝票詳細
+     */
+    protected function getSlipDetails(array $janCodes): array
+    {
+        return [
+            'purchase_slips' => $this->getPurchaseSlipDetails($janCodes),
+            'adjustment_slips' => $this->getAdjustmentSlipDetails($janCodes),
+            'transfer_slips' => $this->getTransferSlipDetails($janCodes)
+        ];
+    }
+    
+    /**
+     * 仕入伝票詳細取得
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @return array 仕入伝票詳細配列
+     */
+    protected function getPurchaseSlipDetails(array $janCodes): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            purchase_date,
+            store_name,
+            supplier_name,
+            SUM(purchase_quantity) as total_quantity,
+            AVG(cost_price) as avg_cost_price,
+            SUM(purchase_amount) as total_amount,
+            MAX(CASE WHEN purchase_quantity > 0 THEN '仕入' ELSE '返品' END) as slip_type
+        FROM purchase_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+        GROUP BY purchase_date, store_name, supplier_name
+        ORDER BY purchase_date
+        ";
+        
+        $results = $this->db->query($sql, $janCodes)->getResultArray();
+        
+        // データ整形
+        foreach ($results as &$row) {
+            $row['total_quantity'] = (int)$row['total_quantity'];
+            $row['avg_cost_price'] = (float)$row['avg_cost_price'];
+            $row['total_amount'] = (float)$row['total_amount'];
+        }
+        
+        return $results;
+    }
     
     /**
      * 現在庫計算
@@ -700,7 +997,6 @@ class SingleProductAnalysisService
             'record_count' => (int)($result['record_count'] ?? 0)
         ];
     }
-    
 
     /**
      * 推奨アクション生成
@@ -794,7 +1090,6 @@ class SingleProductAnalysisService
             'recovery_rate' => $lastWeek['recovery_rate']
         ];
     }    
-
 
     /**
      * 警告情報の収集
@@ -911,7 +1206,78 @@ class SingleProductAnalysisService
         $this->timeout = $seconds;
         return $this;
     }
+    
+    /**
+     * 調整伝票詳細取得
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @return array 調整伝票詳細配列
+     */
+    protected function getAdjustmentSlipDetails(array $janCodes): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            adjustment_date,
+            store_name,
+            adjustment_type,
+            SUM(adjustment_quantity) as total_quantity,
+            adjustment_reason_name,
+            staff_name
+        FROM adjustment_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+        GROUP BY adjustment_date, store_name, adjustment_type, adjustment_reason_name, staff_name
+        ORDER BY adjustment_date
+        ";
+        
+        $results = $this->db->query($sql, $janCodes)->getResultArray();
+        
+        // データ整形
+        foreach ($results as &$row) {
+            $row['total_quantity'] = (int)$row['total_quantity'];
+        }
+        
+        return $results;
+    }
+    
+    /**
+     * 移動伝票詳細取得
+     * 
+     * @param array $janCodes 対象JANコード配列
+     * @return array 移動伝票詳細配列
+     */
+    protected function getTransferSlipDetails(array $janCodes): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            transfer_date,
+            transfer_type,
+            source_store_name,
+            destination_store_name,
+            SUM(transfer_quantity) as total_quantity
+        FROM transfer_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+        GROUP BY transfer_date, transfer_type, source_store_name, destination_store_name
+        ORDER BY transfer_date
+        ";
+        
+        $results = $this->db->query($sql, $janCodes)->getResultArray();
+        
+        // データ整形
+        foreach ($results as &$row) {
+            $row['total_quantity'] = (int)$row['total_quantity'];
+            $row['source_store_name'] = $row['source_store_name'] ?: '-';
+            $row['destination_store_name'] = $row['destination_store_name'] ?: '-';
+        }
+        
+        return $results;
+    }
+
 }
+
 
 /**
  * 単品分析専用例外クラス

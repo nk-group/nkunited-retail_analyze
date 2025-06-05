@@ -965,3 +965,352 @@ body.sales-analysis {
         padding: 15px;
     }
 }
+
+
+/* ===== イベントバッジ ===== */
+
+.event-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    margin: 1px 2px;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.badge-purchase {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.badge-adjustment {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.badge-transfer {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+/* 大量仕入用 */
+.badge-purchase-large {
+    background: #28a745;
+    color: white;
+    font-weight: bold;
+}
+
+/* 緊急仕入用 */
+.badge-purchase-urgent {
+    background: #dc3545;
+    color: white;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* ===== 備考欄の拡張 ===== */
+
+.remarks-cell {
+    max-width: 220px;
+    white-space: normal !important;
+    line-height: 1.4;
+    font-size: 12px;
+}
+
+.remarks-cell .event-badge {
+    display: inline-block;
+    margin: 1px;
+}
+
+/* ===== 残在庫数の表示強調 ===== */
+
+.remaining-stock-low {
+    background: #f8d7da !important;
+    color: #721c24 !important;
+    font-weight: 600;
+}
+
+.remaining-stock-zero {
+    background: #e2e3e5 !important;
+    color: #6c757d !important;
+    font-weight: 600;
+}
+
+.remaining-stock-warning {
+    color: #856404;
+    font-weight: 600;
+}
+
+/* ===== 伝票詳細セクション ===== */
+
+.slip-details-section {
+    border-top: 3px solid #dee2e6;
+}
+
+.slip-table {
+    font-size: 11px;
+    margin-bottom: 0;
+}
+
+.slip-table th {
+    background: #6c757d;
+    color: white;
+    padding: 8px 4px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.slip-table td {
+    padding: 6px 4px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.slip-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* ===== 折りたたみヘッダーの改良 ===== */
+
+.table-header button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.table-header button:hover {
+    opacity: 0.8;
+}
+
+.table-header button .bi-chevron-down {
+    transition: transform 0.3s ease;
+    font-size: 16px;
+}
+
+.table-header button[aria-expanded="true"] .bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* ===== タブコンテンツの改良 ===== */
+
+.nav-tabs .nav-link {
+    color: #495057;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 16px;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.tab-content {
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    background: white;
+}
+
+/* ===== 週別推移テーブルの改良 ===== */
+
+.analysis-table table th:nth-child(10) {
+    background: #28a745; /* 残在庫数列を緑色で強調 */
+}
+
+.analysis-table table th:nth-child(11) {
+    background: #6c757d; /* 備考列 */
+    min-width: 200px;
+}
+
+/* 行の背景色改良 */
+.best-seller {
+    background: #d4edda;
+}
+
+.price-change {
+    background: #fff3cd;
+}
+
+.negative-sales {
+    background: #f8d7da;
+}
+
+.stock-alert {
+    background: #ffebee;
+}
+
+/* ===== 数量表示の改良 ===== */
+
+.quantity-positive {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.quantity-negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.quantity-zero {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* ===== サマリー件数表示 ===== */
+
+.summary-counts {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-right: 15px;
+}
+
+.summary-counts span {
+    margin-right: 10px;
+}
+
+/* ===== モバイル対応の改良 ===== */
+
+@media (max-width: 768px) {
+    .event-badge {
+        font-size: 9px;
+        padding: 1px 4px;
+        margin: 0px 1px;
+    }
+    
+    .remarks-cell {
+        max-width: 150px;
+        font-size: 11px;
+    }
+    
+    .slip-table {
+        font-size: 10px;
+    }
+    
+    .slip-table th,
+    .slip-table td {
+        padding: 4px 2px;
+    }
+    
+    .table-header button {
+        font-size: 12px;
+    }
+    
+    .summary-counts {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .analysis-table {
+        overflow-x: auto;
+    }
+    
+    .analysis-table table {
+        min-width: 800px;
+    }
+    
+    .event-badge {
+        display: block;
+        margin: 2px 0;
+        text-align: center;
+    }
+    
+    .remarks-cell {
+        max-width: 120px;
+    }
+}
+
+/* ===== 印刷時の調整 ===== */
+
+@media print {
+    .event-badge {
+        background: white !important;
+        border: 1px solid #000 !important;
+        color: #000 !important;
+    }
+    
+    .collapse:not(.show) {
+        display: block !important;
+    }
+    
+    .table-header button {
+        display: none;
+    }
+    
+    .nav-tabs {
+        display: none;
+    }
+    
+    .tab-content > .tab-pane {
+        display: block !important;
+        margin-bottom: 20px;
+    }
+}
+
+/* ===== 絵文字の統一表示 ===== */
+
+.emoji {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    font-size: 14px;
+    vertical-align: middle;
+}
+
+/* ===== ツールチップ（将来拡張用） ===== */
+
+.tooltip-trigger {
+    position: relative;
+    cursor: help;
+    border-bottom: 1px dotted #999;
+}
+
+.tooltip-trigger:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1000;
+}
+
+/* ===== アニメーション効果 ===== */
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-down {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { max-height: 0; opacity: 0; }
+    to { max-height: 500px; opacity: 1; }
+}
