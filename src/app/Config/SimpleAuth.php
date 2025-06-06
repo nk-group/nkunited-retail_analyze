@@ -22,6 +22,26 @@ class SimpleAuth extends BaseConfig
             'password'    => 'Password_',
             'displayName' => '上田　祐一',
         ],
+        [
+            'username'    => 'united',
+            'password'    => 'united@',
+            'displayName' => 'NKユナイテッド',
+        ],
+        [
+            'username'    => 'kida',
+            'password'    => 'kida@',
+            'displayName' => '木田 直樹',
+        ],
+        [
+            'username'    => 's.miura',
+            'password'    => 's.miura@',
+            'displayName' => '三浦 里美',
+        ],
+        [
+            'username'    => 't.miura',
+            'password'    => 't.miura@',
+            'displayName' => '三浦 孝明',
+        ],
         // 必要に応じてユーザーを追加
     ];
 }

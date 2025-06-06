@@ -13,6 +13,9 @@
         <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
             <i class="bi bi-printer me-2"></i>印刷
         </button>
+        <button type="button" class="btn btn-outline-info" id="shareUrlBtn">
+            <i class="bi bi-share me-2"></i>URL共有
+        </button>
     </div>
 
     <!-- 成功メッセージ -->
@@ -41,16 +44,24 @@
 
     <!-- ヘッダー情報 -->
     <div class="header-section">
-        <h2 class="page-title">商品販売分析 - 単品集計表</h2>
+        <h2 class="page-title">
+            商品販売分析 - 単品集計表
+        </h2>
         
         <!-- メーカー情報 -->
         <div class="manufacturer-info">
             <?= esc($formatted_result['header_info']['manufacturer_name']) ?> (<?= esc($formatted_result['header_info']['manufacturer_code']) ?>)
+            <?php if ($formatted_result['header_info']['total_manufacturers'] > 1): ?>
+                <span class="badge bg-info ms-2">複数メーカー含む（<?= $formatted_result['header_info']['total_manufacturers'] ?>社）</span>
+            <?php endif; ?>
         </div>
         
         <!-- 商品名 -->
         <div class="product-name">
             <?= esc($formatted_result['header_info']['product_name']) ?>
+            <?php if ($formatted_result['header_info']['is_multi_group']): ?>
+                <span class="badge bg-warning ms-2">複数商品グループ含む（<?= $formatted_result['header_info']['total_product_groups'] ?>グループ）</span>
+            <?php endif; ?>
         </div>
         
         <!-- 品番・シーズン情報 -->
@@ -163,7 +174,7 @@
         <!-- 10. 集計対象商品 -->
         <div class="summary-card clickable" onclick="showProductModal()">
             <h4>集計対象商品</h4>
-            <div class="value"><?= count($analysis_result['basic_info']['jan_details'] ?? []) ?>個のSKU</div>
+            <div class="value"><?= $formatted_result['summary_info']['target_products_count'] ?>個のJAN</div>
         </div>
     </div>
 
@@ -177,32 +188,60 @@
             <div class="modal-body">
                 <div class="product-group-info">
                     <h4><?= esc($formatted_result['header_info']['product_name']) ?></h4>
-                    <p>品番: <?= esc($formatted_result['header_info']['product_number']) ?> | 
-                       対象SKU数: <?= count($analysis_result['basic_info']['jan_details'] ?? []) ?>個</p>
+                    <p>対象JANコード数: <?= $formatted_result['summary_info']['target_products_count'] ?>個</p>
                 </div>
+                
+                <?php if (!empty($formatted_result['manufacturer_groups']) && count($formatted_result['manufacturer_groups']) > 1): ?>
+                    <div class="mb-3">
+                        <h5>メーカー別内訳</h5>
+                        <?php foreach ($formatted_result['manufacturer_groups'] as $mfg): ?>
+                            <div class="badge bg-info me-2 mb-1">
+                                <?= esc($mfg['manufacturer_name']) ?>: <?= $mfg['jan_count'] ?>個
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (!empty($formatted_result['product_groups']) && count($formatted_result['product_groups']) > 1): ?>
+                    <div class="mb-3">
+                        <h5>商品グループ別内訳</h5>
+                        <?php foreach ($formatted_result['product_groups'] as $group): ?>
+                            <div class="card mb-2">
+                                <div class="card-body py-2">
+                                    <small>
+                                        <strong><?= esc($group['product_number']) ?></strong> - <?= esc($group['product_name']) ?>
+                                        <span class="badge bg-secondary ms-2"><?= $group['jan_count'] ?>個</span>
+                                    </small>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
                 
                 <table class="products-table">
                     <thead>
                         <tr>
                             <th>JANコード</th>
+                            <th>メーカー</th>
+                            <th>品番</th>
                             <th>サイズ</th>
                             <th>カラー</th>
-                            <th>売価</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php if (!empty($analysis_result['basic_info']['jan_details'])): ?>
-                            <?php foreach ($analysis_result['basic_info']['jan_details'] as $product): ?>
+                        <?php if (!empty($analysis_result['basic_info']['products'])): ?>
+                            <?php foreach ($analysis_result['basic_info']['products'] as $product): ?>
                                 <tr>
                                     <td style="font-family: monospace;"><?= esc($product['jan_code']) ?></td>
+                                    <td><?= esc($product['manufacturer_name']) ?></td>
+                                    <td><?= esc($product['product_number']) ?></td>
                                     <td><?= esc($product['size_name'] ?? 'F') ?></td>
                                     <td><?= esc($product['color_name'] ?? '-') ?></td>
-                                    <td>¥<?= number_format($product['selling_price'] ?? 0) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="4" class="text-center text-muted">商品データがありません</td>
+                                <td colspan="5" class="text-center text-muted">商品データがありません</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
@@ -211,7 +250,7 @@
             <div class="modal-footer">
                 <p class="info-text">
                     <i class="bi bi-info-circle me-1"></i>
-                    これらのSKUの販売実績を合算して分析しています
+                    これらのJANコードの販売実績を合算して分析しています
                 </p>
             </div>
         </div>
@@ -497,6 +536,29 @@
         <?php endif; ?>
     </div>
 
+    <!-- URL共有機能 -->
+    <div class="url-share-section" id="urlShareSection" style="display: none;">
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-share me-2"></i>分析結果URL共有</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    この分析結果に直接アクセスできるURLです。同僚との共有やブックマークにご利用ください。
+                </p>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="shareUrl" readonly>
+                    <button type="button" class="btn btn-outline-primary" id="copyShareUrlBtn">
+                        <i class="bi bi-clipboard me-2"></i>URLをコピー
+                    </button>
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    このURLは分析対象のJANコードが含まれており、同じ分析結果を表示します。
+                </small>
+            </div>
+        </div>
+    </div>
+
     <!-- 操作ボタン -->
     <div class="text-center mt-4">
         <a href="<?= site_url('sales-analysis/single-product') ?>" class="btn btn-primary btn-lg">
@@ -517,7 +579,8 @@
         <div class="mt-4 p-3 bg-light border rounded">
             <small class="text-muted">
                 <i class="bi bi-clock me-1"></i>実行時間: <?= number_format($execution_time, 3) ?>秒 | 
-                <i class="bi bi-calendar me-1"></i>集計日時: <?= esc($analysis_result['analysis_date'] ?? date('Y-m-d H:i:s')) ?>
+                <i class="bi bi-calendar me-1"></i>集計日時: <?= esc($analysis_result['analysis_date'] ?? date('Y-m-d H:i:s')) ?> |
+                <i class="bi bi-code me-1"></i>入力JANコード数: <?= count($input_jan_codes ?? []) ?>個
             </small>
         </div>
     <?php endif; ?>
@@ -536,8 +599,56 @@ $this->setData([
 <?= $this->section('scripts') ?>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('単品分析結果画面が読み込まれました');
+    console.log('クイック分析結果画面が読み込まれました');
     console.log('実行時間: <?= $execution_time ?? 0 ?>秒');
+    
+    // 現在のURLを取得してURL共有機能を初期化
+    const currentUrl = window.location.href;
+    const shareUrlInput = document.getElementById('shareUrl');
+    const shareUrlSection = document.getElementById('urlShareSection');
+    const shareUrlBtn = document.getElementById('shareUrlBtn');
+    const copyShareUrlBtn = document.getElementById('copyShareUrlBtn');
+    
+    if (shareUrlInput && shareUrlSection && shareUrlBtn && copyShareUrlBtn) {
+        shareUrlInput.value = currentUrl;
+        
+        // URL共有ボタンのクリックイベント
+        shareUrlBtn.addEventListener('click', function() {
+            if (shareUrlSection.style.display === 'none') {
+                shareUrlSection.style.display = 'block';
+                shareUrlBtn.innerHTML = '<i class="bi bi-eye-slash me-2"></i>URL非表示';
+            } else {
+                shareUrlSection.style.display = 'none';
+                shareUrlBtn.innerHTML = '<i class="bi bi-share me-2"></i>URL共有';
+            }
+        });
+        
+        // URLコピーボタンのクリックイベント
+        copyShareUrlBtn.addEventListener('click', function() {
+            shareUrlInput.select();
+            shareUrlInput.setSelectionRange(0, 99999); // モバイル対応
+            
+            try {
+                navigator.clipboard.writeText(shareUrlInput.value).then(function() {
+                    // コピー成功の表示
+                    const originalText = copyShareUrlBtn.innerHTML;
+                    copyShareUrlBtn.innerHTML = '<i class="bi bi-check me-2"></i>コピー完了';
+                    copyShareUrlBtn.classList.remove('btn-outline-primary');
+                    copyShareUrlBtn.classList.add('btn-success');
+                    
+                    setTimeout(function() {
+                        copyShareUrlBtn.innerHTML = originalText;
+                        copyShareUrlBtn.classList.remove('btn-success');
+                        copyShareUrlBtn.classList.add('btn-outline-primary');
+                    }, 2000);
+                });
+            } catch (err) {
+                // フォールバック: execCommand使用
+                document.execCommand('copy');
+                console.log('URL copied using execCommand');
+            }
+        });
+    }
     
     // 折りたたみボタンのアイコン切り替え
     const collapseElement = document.getElementById('slipDetails');

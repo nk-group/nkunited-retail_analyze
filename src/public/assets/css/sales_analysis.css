@@ -394,6 +394,75 @@ body.sales-analysis {
     font-weight: 500;
 }
 
+/* ===== URLコピー機能（新規追加） ===== */
+
+.url-copy-section {
+    margin-top: 20px;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.url-copy-section .card {
+    border: 2px solid #17a2b8;
+    box-shadow: 0 4px 15px rgba(23, 162, 184, 0.1);
+}
+
+.url-copy-section .card-header {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    border-bottom: none;
+}
+
+.url-copy-section .card-header h5 {
+    color: white;
+    margin: 0;
+}
+
+.url-copy-section .input-group {
+    margin-bottom: 10px;
+}
+
+.url-copy-section .form-control {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+}
+
+.url-copy-section .btn {
+    white-space: nowrap;
+}
+
+/* URL共有機能（結果画面用） */
+.url-share-section {
+    margin-top: 20px;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.url-share-section .card {
+    border: 2px solid #28a745;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.1);
+}
+
+.url-share-section .card-header {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border-bottom: none;
+}
+
+.url-share-section .card-header h5 {
+    color: white;
+    margin: 0;
+}
+
+.url-share-section .input-group {
+    margin-bottom: 10px;
+}
+
+.url-share-section .form-control {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+}
+
 /* ===== モーダル関連（入力画面用） ===== */
 
 .modal-search-form {
@@ -964,8 +1033,24 @@ body.sales-analysis {
     .modal-overlay .modal-body {
         padding: 15px;
     }
+    
+    /* URLコピー機能のモバイル対応 */
+    .url-copy-section .form-control,
+    .url-share-section .form-control {
+        font-size: 11px;
+    }
+    
+    .url-copy-section .input-group,
+    .url-share-section .input-group {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .url-copy-section .btn,
+    .url-share-section .btn {
+        width: 100%;
+    }
 }
-
 
 /* ===== イベントバッジ ===== */
 
@@ -998,14 +1083,12 @@ body.sales-analysis {
     border: 1px solid #bee5eb;
 }
 
-/* 大量仕入用 */
 .badge-purchase-large {
     background: #28a745;
     color: white;
     font-weight: bold;
 }
 
-/* 緊急仕入用 */
 .badge-purchase-urgent {
     background: #dc3545;
     color: white;
@@ -1131,15 +1214,14 @@ body.sales-analysis {
 /* ===== 週別推移テーブルの改良 ===== */
 
 .analysis-table table th:nth-child(10) {
-    background: #28a745; /* 残在庫数列を緑色で強調 */
+    background: #28a745;
 }
 
 .analysis-table table th:nth-child(11) {
-    background: #6c757d; /* 備考列 */
+    background: #6c757d;
     min-width: 200px;
 }
 
-/* 行の背景色改良 */
 .best-seller {
     background: #d4edda;
 }
@@ -1185,61 +1267,35 @@ body.sales-analysis {
     margin-right: 10px;
 }
 
-/* ===== モバイル対応の改良 ===== */
+/* ===== アニメーション効果 ===== */
 
-@media (max-width: 768px) {
-    .event-badge {
-        font-size: 9px;
-        padding: 1px 4px;
-        margin: 0px 1px;
-    }
-    
-    .remarks-cell {
-        max-width: 150px;
-        font-size: 11px;
-    }
-    
-    .slip-table {
-        font-size: 10px;
-    }
-    
-    .slip-table th,
-    .slip-table td {
-        padding: 4px 2px;
-    }
-    
-    .table-header button {
-        font-size: 12px;
-    }
-    
-    .summary-counts {
-        font-size: 10px;
-    }
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
 }
 
-@media (max-width: 576px) {
-    .analysis-table {
-        overflow-x: auto;
-    }
-    
-    .analysis-table table {
-        min-width: 800px;
-    }
-    
-    .event-badge {
-        display: block;
-        margin: 2px 0;
-        text-align: center;
-    }
-    
-    .remarks-cell {
-        max-width: 120px;
-    }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-down {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { max-height: 0; opacity: 0; }
+    to { max-height: 500px; opacity: 1; }
 }
 
 /* ===== 印刷時の調整 ===== */
 
 @media print {
+    .action-buttons,
+    .url-copy-section,
+    .url-share-section {
+        display: none !important;
+    }
+    
     .event-badge {
         background: white !important;
         border: 1px solid #000 !important;
@@ -1262,55 +1318,4 @@ body.sales-analysis {
         display: block !important;
         margin-bottom: 20px;
     }
-}
-
-/* ===== 絵文字の統一表示 ===== */
-
-.emoji {
-    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-    font-size: 14px;
-    vertical-align: middle;
-}
-
-/* ===== ツールチップ（将来拡張用） ===== */
-
-.tooltip-trigger {
-    position: relative;
-    cursor: help;
-    border-bottom: 1px dotted #999;
-}
-
-.tooltip-trigger:hover::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #333;
-    color: white;
-    padding: 5px 8px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    z-index: 1000;
-}
-
-/* ===== アニメーション効果 ===== */
-
-.fade-in {
-    animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-10px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.slide-down {
-    animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-    from { max-height: 0; opacity: 0; }
-    to { max-height: 500px; opacity: 1; }
 }

@@ -81,7 +81,7 @@ $routes->group('slips', ['filter' => 'auth'], static function ($routes) {
 
 
 /**
- * 販売分析関連のルート設定（更新版）
+ * 販売分析関連のルート設定
  */
 $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
     // メイン画面（分析メニュー）
@@ -99,17 +99,19 @@ $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
         $routes->get('result', 'SalesAnalysisController::singleProductResult');
     });
     
+    // 集計結果 - JANコード/SKUコード直接指定
+    $routes->get('single-product/result', 'SalesAnalysisController::singleProductResult');
+    
     // Ajax API
     $routes->get('search-makers', 'SalesAnalysisController::searchMakers');
     $routes->get('search-products', 'SalesAnalysisController::searchProducts');
     $routes->get('get-target-products', 'SalesAnalysisController::getTargetProducts');
-    $routes->get('validate-product-number', 'SalesAnalysisController::validateProductNumber'); // 追加
+    $routes->get('validate-product-number', 'SalesAnalysisController::validateProductNumber');
     
-    // 従来のルート（互換性のため残す）
+    // 従来のルート
     $routes->post('execute', 'SalesAnalysisController::execute');
     $routes->get('result', 'SalesAnalysisController::result');
 });
-
 
 
 // === タスク一覧表示関連 (認証フィルターで保護) ===

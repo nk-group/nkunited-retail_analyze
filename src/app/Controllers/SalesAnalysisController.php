@@ -48,7 +48,8 @@ class SalesAnalysisController extends BaseController
     }
 
     /**
-     * 単品分析 - 集計実行
+     * 単品分析 - 集計実行（フォーム経由）
+     * フォーム送信→JANコード取得→single-product/resultにリダイレクト
      */
     public function executeSingleProduct()
     {
@@ -79,89 +80,166 @@ class SalesAnalysisController extends BaseController
                 ->with('errors', $validation->getErrors());
         }
 
-        $conditions = [
-            'manufacturer_code' => $this->request->getPost('manufacturer_code'),
-            'product_number' => $this->request->getPost('product_number'),
-            'product_name' => $this->request->getPost('product_name')
-        ];
-
         try {
-            log_message('info', '単品分析実行開始: ' . json_encode($conditions));
+            $manufacturerCode = $this->request->getPost('manufacturer_code');
+            $productNumber = $this->request->getPost('product_number');
+            $productName = $this->request->getPost('product_name');
             
-            // 原価計算方式の設定（将来的に画面から選択可能にする）
+            log_message('info', "フォーム経由分析実行: {$manufacturerCode} - {$productNumber} - {$productName}");
+            
+            // 指定条件からJANコード一覧を取得
+            $janCodes = $this->productModel->getJanCodesByGroup(
+                $manufacturerCode,
+                $productNumber,
+                $productName
+            );
+            
+            if (empty($janCodes)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', '指定された条件に該当する商品が見つかりません。');
+            }
+            
+            $janCodeList = array_column($janCodes, 'jan_code');
+            
+            log_message('info', 'フォーム経由→JANコード取得完了: ' . count($janCodeList) . '個');
+            
+            // single-product/resultにリダイレクト（原価計算方式も引き継ぎ）
             $costMethod = $this->request->getPost('cost_method') ?? 'average';
-            $this->analysisService->setCostMethod($costMethod);
+            $queryString = 'jan_codes=' . implode(',', $janCodeList) . '&cost_method=' . $costMethod;
+            return redirect()->to(site_url('sales-analysis/single-product/result?' . $queryString));
             
-            // 単品分析サービスの実行
-            $analysisResult = $this->analysisService->executeAnalysis($conditions);
-            
-            // 成功時の処理
-            log_message('info', '単品分析実行完了: 実行時間=' . $analysisResult['execution_time'] . '秒');
-            
-            // セッションに結果データを保存
-            $session = session();
-            $session->setFlashdata('analysis_result', $analysisResult);
-            $session->setFlashdata('success', '単品分析が完了しました。');
-            
-            return redirect()->to(site_url('sales-analysis/single-product/result'));
-            
-        } catch (SingleProductAnalysisException $e) {
-            // 分析固有のエラー
-            log_message('error', '単品分析エラー: ' . $e->getMessage());
-            return redirect()->back()
-                ->withInput()
-                ->with('error', $e->getMessage());
-                
         } catch (\Exception $e) {
-            // 予期しないエラー
-            log_message('error', '単品分析予期しないエラー: ' . $e->getMessage());
+            log_message('error', 'フォーム経由分析エラー: ' . $e->getMessage());
             return redirect()->back()
                 ->withInput()
-                ->with('error', '集計処理中に予期しないエラーが発生しました。システム管理者にお問い合わせください。');
+                ->with('error', '集計処理中にエラーが発生しました: ' . $e->getMessage());
         }
     }
 
     /**
-     * 単品分析 - 結果画面
+     * クイック分析 - JANコード/SKUコード直接指定
+     * 統一エンドポイント（フォーム経由・直接URL両対応）
      */
     public function singleProductResult()
     {
-        $session = session();
-        $analysisResult = $session->getFlashdata('analysis_result');
-        
-        if (!$analysisResult) {
-            return redirect()->to(site_url('sales-analysis/single-product'))
-                ->with('error', '集計結果が見つかりません。再度実行してください。');
-        }
-        
-        // 結果データの整形
-        $formattedResult = $this->formatAnalysisResult($analysisResult);
-        
-        $data = [
-            'pageTitle' => '商品販売分析 - 単品分析 結果',
-            'analysis_result' => $analysisResult,
-            'formatted_result' => $formattedResult,
-            'warnings' => $analysisResult['warnings'] ?? [],
-            'execution_time' => $analysisResult['execution_time'] ?? 0
-        ];
+        try {
+            // パラメータ取得
+            $janCodes = $this->request->getGet('jan_codes');
+            $skuCodes = $this->request->getGet('sku_codes');
+            
+            $targetJanCodes = [];
+            
+            // JANコード指定の場合
+            if (!empty($janCodes)) {
+                if (is_string($janCodes)) {
+                    $targetJanCodes = array_filter(array_map('trim', explode(',', $janCodes)));
+                } elseif (is_array($janCodes)) {
+                    $targetJanCodes = array_filter($janCodes);
+                }
+                
+                log_message('info', 'クイック分析 JANコード指定: ' . json_encode($targetJanCodes));
+            }
+            // SKUコード指定の場合
+            elseif (!empty($skuCodes)) {
+                if (is_string($skuCodes)) {
+                    $skuCodeList = array_filter(array_map('trim', explode(',', $skuCodes)));
+                } elseif (is_array($skuCodes)) {
+                    $skuCodeList = array_filter($skuCodes);
+                }
+                
+                log_message('info', 'クイック分析 SKUコード指定: ' . json_encode($skuCodeList));
+                
+                // SKUからJANコードに変換
+                $targetJanCodes = $this->productModel->getJanCodesBySku($skuCodeList);
+                
+                if (empty($targetJanCodes)) {
+                    return $this->showQuickAnalysisError(
+                        'SKUコードエラー',
+                        '指定されたSKUコードに対応するJANコードが見つかりません。',
+                        ['invalid_sku_codes' => $skuCodeList]
+                    );
+                }
+                
+                log_message('info', 'SKU→JAN変換完了: ' . count($targetJanCodes) . '個');
+            }
+            else {
+                return $this->showQuickAnalysisError(
+                    'パラメータエラー',
+                    'jan_codes または sku_codes パラメータが必要です。',
+                    ['example_url' => site_url('sales-analysis/single-product/result?jan_codes=1234567890123,9876543210987')]
+                );
+            }
+            
+            // JANコード検証
+            if (empty($targetJanCodes)) {
+                return $this->showQuickAnalysisError(
+                    'JANコードエラー',
+                    '有効なJANコードが指定されていません。'
+                );
+            }
+            
+            // 分析実行
+            $costMethod = $this->request->getGet('cost_method') ?? 'average';
+            $this->analysisService->setCostMethod($costMethod);
+            
+            log_message('info', 'クイック分析実行開始: JANコード' . count($targetJanCodes) . '個');
+            
+            $analysisResult = $this->analysisService->executeAnalysisByJanCodes($targetJanCodes);
+            
+            // 結果データの整形
+            $formattedResult = $this->formatAnalysisResultForJanBase($analysisResult);
+            
+            log_message('info', 'クイック分析実行完了: 実行時間=' . $analysisResult['execution_time'] . '秒');
+            
+            $data = [
+                'pageTitle' => '商品販売分析 - クイック分析結果',
+                'analysis_result' => $analysisResult,
+                'formatted_result' => $formattedResult,
+                'warnings' => $analysisResult['warnings'] ?? [],
+                'execution_time' => $analysisResult['execution_time'] ?? 0,
+                'input_jan_codes' => $targetJanCodes,
+            ];
 
-        return view('sales_analysis/single_product_result', $data);
+            return view('sales_analysis/single_product_result', $data);
+            
+        } catch (SingleProductAnalysisException $e) {
+            log_message('error', 'クイック分析エラー: ' . $e->getMessage());
+            return $this->showQuickAnalysisError(
+                '分析エラー',
+                $e->getMessage(),
+                ['target_jan_codes' => $targetJanCodes ?? []]
+            );
+            
+        } catch (\Exception $e) {
+            log_message('error', 'クイック分析予期しないエラー: ' . $e->getMessage());
+            return $this->showQuickAnalysisError(
+                'システムエラー',
+                '予期しないエラーが発生しました。システム管理者にお問い合わせください。',
+                ['error_detail' => $e->getMessage()]
+            );
+        }
     }
 
     /**
-     * 分析結果を画面表示用に整形（拡張版）
-     * 
-     * 【修正内容】
-     * - 定価の定義をselling_price→m_unit_priceに変更
-     * - サマリー部に総仕入数を追加
-     * - サマリー部の並び順変更
-     * 
-     * 【新機能追加】
-     * - 残在庫数の表示
-     * - 週別イベント情報の備考生成
-     * - 伝票詳細情報の整形
+     * クイック分析エラー画面表示
      */
-    private function formatAnalysisResult(array $analysisResult): array
+    protected function showQuickAnalysisError(string $title, string $message, array $additionalData = []): string
+    {
+        $data = [
+            'pageTitle' => '商品販売分析 - エラー',
+            'error_title' => $title,
+            'error_message' => $message,
+            'additional_data' => $additionalData
+        ];
+
+        return view('sales_analysis/single_product_error', $data);
+    }
+
+    /**
+     * JANコードベース分析結果を画面表示用に整形
+     */
+    private function formatAnalysisResultForJanBase(array $analysisResult): array
     {
         $basicInfo = $analysisResult['basic_info'];
         $weeklyAnalysis = $analysisResult['weekly_analysis'];
@@ -169,51 +247,45 @@ class SalesAnalysisController extends BaseController
         $recommendation = $analysisResult['recommendation'];
         $purchaseInfo = $analysisResult['purchase_info'];
         $transferInfo = $analysisResult['transfer_info'];
-        $slipDetails = $analysisResult['slip_details']; // 新規追加
+        $slipDetails = $analysisResult['slip_details'];
+        
+        // 代表商品情報の取得
+        $representative = $basicInfo['representative_product'];
         
         // ヘッダー情報の整形
         $headerInfo = [
-            'manufacturer_name' => $basicInfo['manufacturer']['manufacturer_name'],
-            'manufacturer_code' => $basicInfo['manufacturer']['manufacturer_code'],
-            'product_number' => $basicInfo['product_info']['product_number'],
-            'product_name' => $basicInfo['product_info']['product_name'],
-            'season_code' => $basicInfo['product_info']['season_code'] ?? '-',
+            'manufacturer_name' => $representative['manufacturer_name'],
+            'manufacturer_code' => $representative['manufacturer_code'],
+            'product_number' => $representative['product_number'],
+            'product_name' => $representative['product_name'],
+            'season_code' => $representative['season_code'] ?? '-',
             'first_transfer_date' => $transferInfo['first_transfer_date'],
             'days_since_transfer' => $this->calculateDaysSince($transferInfo['first_transfer_date']),
-            'deletion_scheduled_date' => $basicInfo['product_info']['deletion_scheduled_date'] ?? null,
-            // 【修正】定価の定義をM単価に変更
-            'm_unit_price' => $basicInfo['product_info']['avg_selling_price'] ?? 0, // M単価の平均値
+            'deletion_scheduled_date' => $representative['deletion_scheduled_date'] ?? null,
+            'm_unit_price' => (float)($representative['m_unit_price'] ?? 0),
             'avg_cost_price' => $purchaseInfo['avg_cost_price'],
-            'is_fallback_date' => $transferInfo['is_fallback']
+            'is_fallback_date' => $transferInfo['is_fallback'],
+            'total_manufacturers' => $basicInfo['total_manufacturer_count'],
+            'total_product_groups' => $basicInfo['total_product_group_count'],
+            'is_multi_group' => $basicInfo['total_product_group_count'] > 1
         ];
         
         // サマリー情報の整形
-        // 【修正】サマリー部の並び順変更と総仕入数追加
         $lastWeek = !empty($weeklyAnalysis) ? end($weeklyAnalysis) : null;
         $summaryInfo = [
-            // 1. 仕入原価合計
             'total_purchase_cost' => $purchaseInfo['total_purchase_cost'],
-            // 2. 売上合計
             'total_sales_amount' => $lastWeek['cumulative_sales_amount'] ?? 0,
-            // 3. 粗利合計
             'total_gross_profit' => $lastWeek['cumulative_gross_profit'] ?? 0,
-            // 4. 原価回収率
             'recovery_rate' => $lastWeek['recovery_rate'] ?? 0,
-            // 5. 総仕入数【新規追加】
             'total_purchase_qty' => $purchaseInfo['total_purchase_qty'],
-            // 6. 総販売数
             'total_sales_qty' => $lastWeek['cumulative_sales_qty'] ?? 0,
-            // 7. 残在庫数
             'current_stock_qty' => $currentStock['current_stock_qty'],
-            // 8. 残在庫原価
             'current_stock_value' => $currentStock['current_stock_value'],
-            // 9. 定価【修正】M単価に変更
             'm_unit_price' => $headerInfo['m_unit_price'],
-            // 10. 集計対象商品（既存）
-            'target_products_count' => count($basicInfo['jan_details'] ?? [])
+            'target_products_count' => $basicInfo['total_jan_count']
         ];
         
-        // 週別データの整形（拡張版）
+        // 週別データの整形
         $formattedWeeklyData = [];
         foreach ($weeklyAnalysis as $week) {
             $formattedWeeklyData[] = [
@@ -226,19 +298,17 @@ class SalesAnalysisController extends BaseController
                 'cumulative_sales' => $week['cumulative_sales_qty'],
                 'cumulative_profit' => $week['cumulative_gross_profit'],
                 'recovery_rate' => $week['recovery_rate'],
-                'remaining_stock' => $week['remaining_stock'], // 新規追加
-                // 【修正】M単価ベースでの備考生成
-                'remarks' => $this->generateWeekRemarksExtended($week, $headerInfo['m_unit_price']), // 拡張版
+                'remaining_stock' => $week['remaining_stock'],
+                'remarks' => $this->generateWeekRemarksExtended($week, $headerInfo['m_unit_price']),
                 'has_returns' => $week['has_returns'],
                 'return_qty' => $week['return_qty'],
-                'purchase_events' => $week['purchase_events'], // 新規追加
-                'adjustment_events' => $week['adjustment_events'], // 新規追加
-                'transfer_events' => $week['transfer_events'] // 新規追加
+                'purchase_events' => $week['purchase_events'],
+                'adjustment_events' => $week['adjustment_events'],
+                'transfer_events' => $week['transfer_events']
             ];
         }
         
-        // 売価別販売状況の生成（簡易版）
-        // 【修正】M単価ベースでの計算
+        // 売価別販売状況の生成
         $priceBreakdown = $this->generatePriceBreakdown($weeklyAnalysis, $headerInfo['m_unit_price']);
         
         // 推奨アクションの整形
@@ -253,7 +323,7 @@ class SalesAnalysisController extends BaseController
             'recovery_achieved' => $recommendation['recovery_achieved']
         ];
         
-        // 伝票詳細情報の整形（新規追加）
+        // 伝票詳細情報の整形
         $formattedSlipDetails = $this->formatSlipDetails($slipDetails);
         
         return [
@@ -262,26 +332,20 @@ class SalesAnalysisController extends BaseController
             'weekly_data' => $formattedWeeklyData,
             'price_breakdown' => $priceBreakdown,
             'recommendation' => $formattedRecommendation,
-            'slip_details' => $formattedSlipDetails // 新規追加
+            'slip_details' => $formattedSlipDetails,
+            'manufacturer_groups' => $basicInfo['manufacturers'],
+            'product_groups' => $basicInfo['product_groups']
         ];
     }
 
     /**
      * 週別備考の生成（拡張版）
-     * 
-     * 【修正】M単価ベースでの値引き率計算に変更
-     * 
-     * 【新機能追加】
-     * - 仕入イベントの表示（数量付き）
-     * - 調整イベントの表示（数量付き）
-     * - 移動イベントの表示（数量なし）
-     * - 絵文字を活用した視覚的表示
      */
     private function generateWeekRemarksExtended(array $week, float $mUnitPrice): string
     {
         $remarks = [];
         
-        // 【修正】M単価ベースでの価格変動検出（絵文字付き）
+        // M単価ベースでの価格変動検出
         if ($week['avg_sales_price'] < $mUnitPrice * 0.95) {
             $discountRate = round((1 - $week['avg_sales_price'] / $mUnitPrice) * 100);
             if ($discountRate >= 50) {
@@ -315,7 +379,7 @@ class SalesAnalysisController extends BaseController
             $remarks[] = '✅ 完売';
         }
         
-        // イベント情報の追加（新規機能）
+        // イベント情報の追加
         $eventBadges = $this->generateEventBadges($week);
         if (!empty($eventBadges)) {
             $remarks = array_merge($remarks, $eventBadges);
@@ -325,18 +389,13 @@ class SalesAnalysisController extends BaseController
     }
 
     /**
-     * イベントバッジの生成（新規追加）
-     * 
-     * 仕入・調整・移動の各イベントをバッジ形式で生成
-     * 
-     * @param array $week 週別データ
-     * @return array イベントバッジ配列
+     * イベントバッジの生成
      */
     private function generateEventBadges(array $week): array
     {
         $badges = [];
         
-        // 仕入イベント（数量付き）
+        // 仕入イベント
         if (!empty($week['purchase_events'])) {
             $totalPurchase = array_sum(array_column($week['purchase_events'], 'quantity'));
             if ($totalPurchase > 0) {
@@ -344,7 +403,7 @@ class SalesAnalysisController extends BaseController
             }
         }
         
-        // 調整イベント（数量付き）
+        // 調整イベント
         if (!empty($week['adjustment_events'])) {
             $totalAdjustment = array_sum(array_column($week['adjustment_events'], 'quantity'));
             if ($totalAdjustment != 0) {
@@ -353,7 +412,7 @@ class SalesAnalysisController extends BaseController
             }
         }
         
-        // 移動イベント（数量なし）
+        // 移動イベント
         if (!empty($week['transfer_events'])) {
             $badges[] = "🚚 移動";
         }
@@ -362,12 +421,7 @@ class SalesAnalysisController extends BaseController
     }
     
     /**
-     * 伝票詳細情報の整形（新規追加）
-     * 
-     * 【修正】各伝票に伝票番号を追加表示
-     * 
-     * @param array $slipDetails 伝票詳細データ
-     * @return array 整形済み伝票詳細
+     * 伝票詳細情報の整形
      */
     private function formatSlipDetails(array $slipDetails): array
     {
@@ -385,8 +439,6 @@ class SalesAnalysisController extends BaseController
     
     /**
      * 仕入伝票の整形
-     * 
-     * 【修正】伝票番号を追加
      */
     private function formatPurchaseSlips(array $purchaseSlips): array
     {
@@ -394,7 +446,7 @@ class SalesAnalysisController extends BaseController
         foreach ($purchaseSlips as $slip) {
             $formatted[] = [
                 'date' => $slip['purchase_date'],
-                'slip_number' => $slip['slip_number'], // 【追加】伝票番号
+                'slip_number' => $slip['slip_number'],
                 'store' => $slip['store_name'] ?: '本部DC',
                 'supplier' => $slip['supplier_name'] ?: '-',
                 'quantity' => $slip['total_quantity'],
@@ -409,8 +461,6 @@ class SalesAnalysisController extends BaseController
 
     /**
      * 調整伝票の整形
-     * 
-     * 【修正】伝票番号を追加
      */
     private function formatAdjustmentSlips(array $adjustmentSlips): array
     {
@@ -418,7 +468,7 @@ class SalesAnalysisController extends BaseController
         foreach ($adjustmentSlips as $slip) {
             $formatted[] = [
                 'date' => $slip['adjustment_date'],
-                'slip_number' => $slip['slip_number'], // 【追加】伝票番号
+                'slip_number' => $slip['slip_number'],
                 'store' => $slip['store_name'] ?: '-',
                 'type' => $slip['adjustment_type'] ?: '-',
                 'quantity' => $slip['total_quantity'],
@@ -431,8 +481,6 @@ class SalesAnalysisController extends BaseController
     
     /**
      * 移動伝票の整形
-     * 
-     * 【修正】伝票番号を追加、品出し判定による色分け情報追加
      */
     private function formatTransferSlips(array $transferSlips): array
     {
@@ -440,13 +488,13 @@ class SalesAnalysisController extends BaseController
         foreach ($transferSlips as $slip) {
             $formatted[] = [
                 'date' => $slip['transfer_date'],
-                'slip_number' => $slip['slip_number'], // 【追加】伝票番号
+                'slip_number' => $slip['slip_number'],
                 'type' => $slip['transfer_type'],
                 'source_store' => $slip['source_store_name'],
                 'destination_store' => $slip['destination_store_name'],
                 'quantity' => $slip['total_quantity'],
                 'remarks' => $this->getTransferRemarks($slip),
-                'is_initial_delivery' => $slip['is_initial_delivery'] // 【追加】品出し判定フラグ
+                'is_initial_delivery' => $slip['is_initial_delivery']
             ];
         }
         return $formatted;
@@ -489,42 +537,7 @@ class SalesAnalysisController extends BaseController
     }
 
     /**
-     * 週別備考の生成
-     */
-    private function generateWeekRemarks(array $week, float $sellingPrice): string
-    {
-        $remarks = [];
-        
-        // 価格変動の検出
-        if ($week['avg_sales_price'] < $sellingPrice * 0.95) {
-            $discountRate = round((1 - $week['avg_sales_price'] / $sellingPrice) * 100);
-            $remarks[] = "{$discountRate}%値引";
-        } elseif ($week['avg_sales_price'] >= $sellingPrice * 0.95) {
-            $remarks[] = '定価販売';
-        }
-        
-        // 回収率の節目
-        if ($week['recovery_rate'] >= 100) {
-            $remarks[] = '原価回収達成';
-        }
-        
-        // 返品発生
-        if ($week['has_returns']) {
-            $remarks[] = '返品発生';
-        }
-        
-        // 売れ行き状況
-        if ($week['weekly_sales_qty'] <= 0) {
-            $remarks[] = '販売停滞';
-        }
-        
-        return implode('、', $remarks) ?: '-';
-    }
-
-    /**
-     * 売価別販売状況の生成（簡易版）
-     * 
-     * 【修正】M単価ベースでの値引き率計算
+     * 売価別販売状況の生成
      */
     private function generatePriceBreakdown(array $weeklyAnalysis, float $mUnitPrice): array
     {
@@ -556,7 +569,6 @@ class SalesAnalysisController extends BaseController
         $formattedPriceBreakdown = [];
         foreach ($priceGroups as $group) {
             $ratio = $totalSales > 0 ? ($group['quantity'] / $totalSales) * 100 : 0;
-            // 【修正】M単価ベースでの値引き率計算
             $discountRate = $mUnitPrice > 0 ? (1 - $group['price'] / $mUnitPrice) * 100 : 0;
             
             $formattedPriceBreakdown[] = [
@@ -640,7 +652,7 @@ class SalesAnalysisController extends BaseController
 
         $keyword = $this->request->getGet('keyword');
         $page = (int) ($this->request->getGet('page') ?? 1);
-        $exact = $this->request->getGet('exact'); // 完全一致フラグ
+        $exact = $this->request->getGet('exact');
         $limit = 10;
         
         try {
@@ -648,10 +660,8 @@ class SalesAnalysisController extends BaseController
             
             if (!empty($keyword)) {
                 if ($exact) {
-                    // 完全一致検索（メーカーコード入力時）
                     $builder = $builder->where('manufacturer_code', $keyword);
                 } else {
-                    // 部分一致検索（モーダル検索時）
                     $builder = $builder->groupStart()
                         ->like('manufacturer_code', $keyword)
                         ->orLike('manufacturer_name', $keyword)
@@ -707,7 +717,7 @@ class SalesAnalysisController extends BaseController
         $manufacturerCode = $this->request->getGet('manufacturer_code');
         $keyword = $this->request->getGet('keyword');
         $page = (int) ($this->request->getGet('page') ?? 1);
-        $limit = 50; // 品番検索は多めに表示
+        $limit = 50;
         
         try {
             if (empty($manufacturerCode)) {
@@ -717,7 +727,6 @@ class SalesAnalysisController extends BaseController
                 ]);
             }
 
-            // メーカーの存在確認
             $manufacturer = $this->manufacturerModel->find($manufacturerCode);
             if (!$manufacturer) {
                 return $this->response->setStatusCode(400)->setJSON([
@@ -726,14 +735,12 @@ class SalesAnalysisController extends BaseController
                 ]);
             }
 
-            // 品番グループを取得
             $products = $this->productModel->getProductNumberGroups(
                 $manufacturerCode, 
                 $keyword, 
                 $limit
             );
 
-            // データの整形
             $formattedProducts = [];
             foreach ($products as $product) {
                 $formattedProducts[] = [
@@ -797,7 +804,6 @@ class SalesAnalysisController extends BaseController
                 ]);
             }
 
-            // 基本情報の確認
             $productInfo = $this->productModel->getProductBasicInfo(
                 $manufacturerCode,
                 $productNumber,
@@ -811,7 +817,6 @@ class SalesAnalysisController extends BaseController
                 ]);
             }
 
-            // JANコード一覧を取得
             $janCodes = $this->productModel->getJanCodesByGroup(
                 $manufacturerCode,
                 $productNumber,
@@ -825,7 +830,6 @@ class SalesAnalysisController extends BaseController
                 ]);
             }
 
-            // データの整形
             $formattedJanCodes = [];
             foreach ($janCodes as $jan) {
                 $formattedJanCodes[] = [
@@ -848,10 +852,12 @@ class SalesAnalysisController extends BaseController
                 'product_info' => $productInfo,
                 'summary' => [
                     'total_jan_count' => count($formattedJanCodes),
-                    'avg_selling_price' => array_sum(array_column($formattedJanCodes, 'selling_price')) / count($formattedJanCodes),
+                    'avg_selling_price' => count($formattedJanCodes) > 0 
+                        ? array_sum(array_column($formattedJanCodes, 'selling_price')) / count($formattedJanCodes) 
+                        : 0,
                     'price_range' => [
-                        'min' => min(array_column($formattedJanCodes, 'selling_price')),
-                        'max' => max(array_column($formattedJanCodes, 'selling_price'))
+                        'min' => count($formattedJanCodes) > 0 ? min(array_column($formattedJanCodes, 'selling_price')) : 0,
+                        'max' => count($formattedJanCodes) > 0 ? max(array_column($formattedJanCodes, 'selling_price')) : 0
                     ]
                 ]
             ]);

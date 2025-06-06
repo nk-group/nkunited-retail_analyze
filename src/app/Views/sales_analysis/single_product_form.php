@@ -143,6 +143,29 @@
 
     <?= form_close() ?>
 
+    <!-- URLコピー機能 -->
+    <div class="url-copy-section" id="urlCopySection" style="display: none;">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-link me-2"></i>分析結果URLの生成</h5>
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    この分析条件で直接アクセスできるURLを生成できます。ブックマークや共有にご利用ください。
+                </p>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="quickAnalysisUrl" readonly>
+                    <button type="button" class="btn btn-outline-primary" id="copyUrlBtn">
+                        <i class="bi bi-clipboard me-2"></i>URLをコピー
+                    </button>
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    このURLを使用すると、フォーム入力を省略して直接分析結果を表示できます。
+                </small>
+            </div>
+        </div>
+    </div>
+
     <div class="text-center mt-4">
         <a href="<?= site_url('sales-analysis') ?>" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left me-2"></i>分析メニューに戻る
@@ -387,7 +410,10 @@ document.addEventListener('DOMContentLoaded', function() {
         productList: document.getElementById('productList'),
         targetProducts: document.getElementById('targetProducts'),
         executeBtn: document.getElementById('executeBtn'),
-        makerModal: document.getElementById('makerReferenceModal')
+        makerModal: document.getElementById('makerReferenceModal'),
+        urlCopySection: document.getElementById('urlCopySection'),
+        quickAnalysisUrl: document.getElementById('quickAnalysisUrl'),
+        copyUrlBtn: document.getElementById('copyUrlBtn')
     };
     
     // 必要な要素が存在するかチェック
@@ -406,6 +432,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let totalPages = 1;
     let currentManufacturerCode = '';
     let currentProductNumber = '';
+    let currentJanCodes = []; // JANコード配列
 
     // === Step 1: メーカーコード入力処理 ===
     elements.manufacturerCode.addEventListener('input', function() {
@@ -418,6 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             resetManufacturerDisplay();
             resetSteps([2, 3, 4]);
+            hideUrlCopySection();
         }
     });
 
@@ -450,12 +478,14 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 showManufacturerNotFound();
                 resetSteps([2, 3, 4]);
+                hideUrlCopySection();
             }
         })
         .catch(error => {
             console.error('メーカー検証エラー:', error);
             showManufacturerError(error.message);
             resetSteps([2, 3, 4]);
+            hideUrlCopySection();
         });
     }
 
@@ -466,11 +496,11 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('品番入力:', number);
         
         if (number && currentManufacturerCode) {
-            // リアルタイム存在確認
             validateProductNumber(currentManufacturerCode, number);
         } else {
             resetProductDisplay();
             resetSteps([3, 4]);
+            hideUrlCopySection();
         }
     });
 
@@ -493,12 +523,14 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 showProductMessage('該当する品番が見つかりません', 'error');
                 resetSteps([3, 4]);
+                hideUrlCopySection();
             }
         })
         .catch(error => {
             console.error('品番検証エラー:', error);
             showProductMessage('品番検証でエラーが発生しました', 'error');
             resetSteps([3, 4]);
+            hideUrlCopySection();
         });
     }
 
@@ -527,12 +559,14 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 showProductMessage('該当する品番が見つかりません', 'error');
                 resetSteps([3, 4]);
+                hideUrlCopySection();
             }
         })
         .catch(error => {
             console.error('品番リスト取得エラー:', error);
             showProductMessage(`品番検索でエラーが発生しました: ${error.message}`, 'error');
             resetSteps([3, 4]);
+            hideUrlCopySection();
         });
     }
 
@@ -659,6 +693,8 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('JANコード取得結果:', data);
             
             if (data.success && data.data.length > 0) {
+                currentJanCodes = data.data.map(item => item.jan_code);
+                
                 const janList = document.getElementById('janList');
                 janList.innerHTML = data.data.map(item => {
                     let displayText = item.jan_code;
@@ -668,8 +704,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (item.color_name && item.color_name !== '-') {
                         displayText += ` [${item.color_name}]`;
                     }
-                    return `<div class="jan-item">${escapeHtml(displayText)}</div>`;
+                    return `<div class="jan-item" data-jan-code="${escapeHtml(item.jan_code)}">${escapeHtml(displayText)}</div>`;
                 }).join('');
+                
+                // URL生成機能を表示
+                showUrlCopySection();
                 
                 // サマリー情報も表示
                 if (data.summary) {
@@ -678,12 +717,14 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 const janList = document.getElementById('janList');
                 janList.innerHTML = '<div class="text-muted">JANコードが見つかりません</div>';
+                hideUrlCopySection();
             }
         })
         .catch(error => {
             console.error('JANコード取得エラー:', error);
             const janList = document.getElementById('janList');
             janList.innerHTML = '<div class="text-danger">JANコード取得エラー</div>';
+            hideUrlCopySection();
         });
     }
 
@@ -700,7 +741,52 @@ document.addEventListener('DOMContentLoaded', function() {
         elements.productList.style.display = 'none';
         elements.targetProducts.style.display = 'none';
         updateStepStatus(2, 'disabled');
+        hideUrlCopySection();
     }
+
+    // === URLコピー機能 ===
+    function showUrlCopySection() {
+        if (currentJanCodes.length > 0) {
+            const baseUrl = '<?= site_url('sales-analysis/single-product/result') ?>';
+            const janCodesParam = currentJanCodes.join(',');
+            const quickUrl = `${baseUrl}?jan_codes=${encodeURIComponent(janCodesParam)}`;
+            
+            elements.quickAnalysisUrl.value = quickUrl;
+            elements.urlCopySection.style.display = 'block';
+            elements.urlCopySection.classList.add('fade-in');
+        }
+    }
+
+    function hideUrlCopySection() {
+        elements.urlCopySection.style.display = 'none';
+        elements.quickAnalysisUrl.value = '';
+    }
+
+    // URLコピーボタンイベント
+    elements.copyUrlBtn.addEventListener('click', function() {
+        elements.quickAnalysisUrl.select();
+        elements.quickAnalysisUrl.setSelectionRange(0, 99999); // モバイル対応
+        
+        try {
+            navigator.clipboard.writeText(elements.quickAnalysisUrl.value).then(function() {
+                // コピー成功の表示
+                const originalText = elements.copyUrlBtn.innerHTML;
+                elements.copyUrlBtn.innerHTML = '<i class="bi bi-check me-2"></i>コピー完了';
+                elements.copyUrlBtn.classList.remove('btn-outline-primary');
+                elements.copyUrlBtn.classList.add('btn-success');
+                
+                setTimeout(function() {
+                    elements.copyUrlBtn.innerHTML = originalText;
+                    elements.copyUrlBtn.classList.remove('btn-success');
+                    elements.copyUrlBtn.classList.add('btn-outline-primary');
+                }, 2000);
+            });
+        } catch (err) {
+            // フォールバック: execCommand使用
+            document.execCommand('copy');
+            console.log('URL copied using execCommand');
+        }
+    });
 
     // === Step管理関数 ===
     function enableStep2() {
@@ -734,6 +820,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 elements.targetProducts.style.display = 'none';
                 document.getElementById('productName').value = '';
                 selectedProduct = null;
+                currentJanCodes = [];
             } else if (step === 4) {
                 updateStepStatus(4, 'disabled');
                 elements.executeBtn.disabled = true;

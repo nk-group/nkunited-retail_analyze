@@ -47,6 +47,218 @@ class ProductModel extends Model
     protected $afterDelete    = [];
 
     /**
+     * JANコード配列から商品情報を取得
+     * 
+     * @param array $janCodes JANコード配列
+     * @return array 商品情報配列（メーカー別にグループ化）
+     */
+    public function getProductsByJanCodes(array $janCodes): array
+    {
+        if (empty($janCodes)) {
+            return [];
+        }
+
+        // 重複除去と正規化
+        $janCodes = array_unique(array_filter($janCodes));
+        
+        if (empty($janCodes)) {
+            return [];
+        }
+
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            p.*,
+            m.manufacturer_name
+        FROM products p
+        LEFT JOIN manufacturers m ON p.manufacturer_code = m.manufacturer_code
+        WHERE p.jan_code IN ({$janCodesPlaceholder})
+        ORDER BY p.manufacturer_code, p.product_number, p.product_name, p.jan_code
+        ";
+        
+        $results = $this->db->query($sql, $janCodes)->getResultArray();
+        
+        // 各商品に追加情報を付与
+        foreach ($results as &$product) {
+            $product['size_name'] = $this->generateSizeName($product['size_code']);
+            $product['color_name'] = $this->generateColorName($product['color_code'], $product['manufacturer_color_code']);
+            $product['display_name'] = $this->generateDisplayName($product);
+            $product['is_discontinued'] = $this->isDiscontinuedItem($product);
+            $product['effective_cost_price'] = $this->getEffectiveCostPrice($product);
+        }
+        
+        log_message('info', 'ProductModel::getProductsByJanCodes 取得件数: ' . count($results));
+        
+        return $results;
+    }
+
+    /**
+     * SKUコード配列からJANコードを取得
+     * 
+     * @param array $skuCodes SKUコード配列
+     * @return array JANコード配列
+     */
+    public function getJanCodesBySku(array $skuCodes): array
+    {
+        if (empty($skuCodes)) {
+            return [];
+        }
+
+        // 重複除去と正規化
+        $skuCodes = array_unique(array_filter($skuCodes));
+        
+        if (empty($skuCodes)) {
+            return [];
+        }
+
+        $skuCodesPlaceholder = str_repeat('?,', count($skuCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT jan_code, sku_code
+        FROM products
+        WHERE sku_code IN ({$skuCodesPlaceholder})
+          AND sku_code IS NOT NULL
+          AND sku_code != ''
+        ORDER BY sku_code
+        ";
+        
+        $results = $this->db->query($sql, $skuCodes)->getResultArray();
+        
+        log_message('info', 'ProductModel::getJanCodesBySku SKU入力: ' . count($skuCodes) . ', JAN取得: ' . count($results));
+        
+        return array_column($results, 'jan_code');
+    }
+
+    /**
+     * JANコードの存在チェック
+     * 
+     * @param array $janCodes JANコード配列
+     * @return array バリデーション結果
+     */
+    public function validateJanCodes(array $janCodes): array
+    {
+        if (empty($janCodes)) {
+            return [
+                'valid' => false,
+                'message' => 'JANコードが指定されていません',
+                'valid_codes' => [],
+                'invalid_codes' => [],
+                'found_count' => 0
+            ];
+        }
+
+        // 重複除去と正規化
+        $janCodes = array_unique(array_filter($janCodes));
+        
+        if (empty($janCodes)) {
+            return [
+                'valid' => false,
+                'message' => '有効なJANコードが指定されていません',
+                'valid_codes' => [],
+                'invalid_codes' => [],
+                'found_count' => 0
+            ];
+        }
+
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT jan_code
+        FROM products
+        WHERE jan_code IN ({$janCodesPlaceholder})
+        ";
+        
+        $results = $this->db->query($sql, $janCodes)->getResultArray();
+        $foundJanCodes = array_column($results, 'jan_code');
+        $invalidJanCodes = array_diff($janCodes, $foundJanCodes);
+        
+        $isValid = count($foundJanCodes) > 0;
+        $message = '';
+        
+        if (!$isValid) {
+            $message = '指定されたJANコードが見つかりません';
+        } elseif (!empty($invalidJanCodes)) {
+            $message = count($invalidJanCodes) . '個のJANコードが見つかりませんでした';
+        } else {
+            $message = 'すべてのJANコードが確認されました';
+        }
+        
+        return [
+            'valid' => $isValid,
+            'message' => $message,
+            'valid_codes' => $foundJanCodes,
+            'invalid_codes' => $invalidJanCodes,
+            'found_count' => count($foundJanCodes)
+        ];
+    }
+
+    /**
+     * SKUコードの存在チェック
+     * 
+     * @param array $skuCodes SKUコード配列
+     * @return array バリデーション結果
+     */
+    public function validateSkuCodes(array $skuCodes): array
+    {
+        if (empty($skuCodes)) {
+            return [
+                'valid' => false,
+                'message' => 'SKUコードが指定されていません',
+                'valid_codes' => [],
+                'invalid_codes' => [],
+                'found_count' => 0
+            ];
+        }
+
+        // 重複除去と正規化
+        $skuCodes = array_unique(array_filter($skuCodes));
+        
+        if (empty($skuCodes)) {
+            return [
+                'valid' => false,
+                'message' => '有効なSKUコードが指定されていません',
+                'valid_codes' => [],
+                'invalid_codes' => [],
+                'found_count' => 0
+            ];
+        }
+
+        $skuCodesPlaceholder = str_repeat('?,', count($skuCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT sku_code
+        FROM products
+        WHERE sku_code IN ({$skuCodesPlaceholder})
+          AND sku_code IS NOT NULL
+          AND sku_code != ''
+        ";
+        
+        $results = $this->db->query($sql, $skuCodes)->getResultArray();
+        $foundSkuCodes = array_column($results, 'sku_code');
+        $invalidSkuCodes = array_diff($skuCodes, $foundSkuCodes);
+        
+        $isValid = count($foundSkuCodes) > 0;
+        $message = '';
+        
+        if (!$isValid) {
+            $message = '指定されたSKUコードが見つかりません';
+        } elseif (!empty($invalidSkuCodes)) {
+            $message = count($invalidSkuCodes) . '個のSKUコードが見つかりませんでした';
+        } else {
+            $message = 'すべてのSKUコードが確認されました';
+        }
+        
+        return [
+            'valid' => $isValid,
+            'message' => $message,
+            'valid_codes' => $foundSkuCodes,
+            'invalid_codes' => $invalidSkuCodes,
+            'found_count' => count($foundSkuCodes)
+        ];
+    }
+
+    /**
      * 指定されたメーカーの品番リストを取得
      * メーカーコード + 品番でグループ化し、品番名ごとに集計
      * 
@@ -106,7 +318,6 @@ class ProductModel extends Model
         
         $result = $builder->get()->getResultArray();
         
-        // ログ出力（デバッグ用）
         log_message('info', 'ProductModel::getProductNumberGroups SQL: ' . $this->db->getLastQuery());
         log_message('info', 'ProductModel::getProductNumberGroups 結果件数: ' . count($result));
         
