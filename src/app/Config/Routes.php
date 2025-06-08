@@ -99,6 +99,15 @@ $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
         $routes->get('result', 'SalesAnalysisController::singleProductResult');
     });
     
+    // コード分析
+    $routes->group('code-analysis', function($routes) {
+        // 集計指示画面
+        $routes->get('/', 'SalesAnalysisController::codeAnalysis');
+        
+        // 集計実行
+        $routes->post('execute', 'SalesAnalysisController::executeCodeAnalysis');
+    });
+    
     // 集計結果 - JANコード/SKUコード直接指定
     $routes->get('single-product/result', 'SalesAnalysisController::singleProductResult');
     
@@ -107,12 +116,12 @@ $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
     $routes->get('search-products', 'SalesAnalysisController::searchProducts');
     $routes->get('get-target-products', 'SalesAnalysisController::getTargetProducts');
     $routes->get('validate-product-number', 'SalesAnalysisController::validateProductNumber');
+    $routes->get('search-all-products', 'SalesAnalysisController::searchAllProducts');
     
     // 従来のルート
     $routes->post('execute', 'SalesAnalysisController::execute');
     $routes->get('result', 'SalesAnalysisController::result');
 });
-
 
 // === タスク一覧表示関連 (認証フィルターで保護) ===
 // マスタや伝票のグループ化パターンに合わせて 'tasks' グループを作成

@@ -909,4 +909,229 @@ class SalesAnalysisController extends BaseController
             ]);
         }
     }
+
+
+    /**
+     * コード分析 - 集計指示画面
+     */
+    public function codeAnalysis()
+    {
+        $data = [
+            'pageTitle' => '商品販売分析 - コード分析 集計指示'
+        ];
+
+        return view('sales_analysis/code_analysis_form', $data);
+    }
+
+    /**
+     * コード分析 - 集計実行（フォーム経由）
+     */
+    public function executeCodeAnalysis()
+    {
+        if (!$this->request->is('post')) {
+            return redirect()->back()->with('error', '不正なリクエストです。');
+        }
+
+        $validation = \Config\Services::validation();
+        
+        $validation->setRules([
+            'code_type' => [
+                'label' => 'コード種類',
+                'rules' => 'required|in_list[jan_code,sku_code]'
+            ],
+            'product_codes' => [
+                'label' => '商品コード',
+                'rules' => 'required'
+            ]
+        ]);
+
+        if (!$validation->withRequest($this->request)->run()) {
+            return redirect()->back()
+                ->withInput()
+                ->with('errors', $validation->getErrors());
+        }
+
+        try {
+            $codeType = $this->request->getPost('code_type');
+            $productCodesJson = $this->request->getPost('product_codes');
+            
+            log_message('info', "コード分析実行: コード種類={$codeType}");
+            
+            // JSON形式の商品コードリストをデコード
+            $productCodes = json_decode($productCodesJson, true);
+            if (!is_array($productCodes) || empty($productCodes)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', '有効な商品コードが指定されていません。');
+            }
+            
+            // コードリストから有効なコードのみ抽出
+            $validCodes = array_filter(array_map('trim', $productCodes));
+            if (empty($validCodes)) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', '有効な商品コードが指定されていません。');
+            }
+            
+            log_message('info', 'コード分析→対象コード数: ' . count($validCodes));
+            
+            // single-product/resultにリダイレクト
+            $costMethod = $this->request->getPost('cost_method') ?? 'average';
+            
+            if ($codeType === 'jan_code') {
+                $queryString = 'jan_codes=' . implode(',', $validCodes) . '&cost_method=' . $costMethod;
+            } else {
+                $queryString = 'sku_codes=' . implode(',', $validCodes) . '&cost_method=' . $costMethod;
+            }
+            
+            return redirect()->to(site_url('sales-analysis/single-product/result?' . $queryString));
+            
+        } catch (\Exception $e) {
+            log_message('error', 'コード分析エラー: ' . $e->getMessage());
+            return redirect()->back()
+                ->withInput()
+                ->with('error', '集計処理中にエラーが発生しました: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 全商品検索API（Ajax用）
+     */
+    public function searchAllProducts()
+    {
+        if (!$this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
+        }
+
+        $keyword = $this->request->getGet('keyword');
+        $page = (int) ($this->request->getGet('page') ?? 1);
+        $limit = 20;
+        
+        try {
+            if (empty($keyword) || strlen($keyword) < 2) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'error' => '検索キーワードは2文字以上で入力してください。'
+                ]);
+            }
+
+            $builder = $this->db->table('products p');
+            $builder->select([
+                'p.jan_code',
+                'p.sku_code', 
+                'p.product_number',
+                'p.product_name',
+                'p.color_code',
+                'p.size_code',
+                'p.selling_price',
+                'p.m_unit_price',
+                'p.cost_price',
+                'p.manufacturer_code',
+                'm.manufacturer_name',
+                'p.deletion_type',
+                'p.deletion_scheduled_date'
+            ]);
+            
+            $builder->join('manufacturers m', 'p.manufacturer_code = m.manufacturer_code', 'left');
+            
+            // 検索条件
+            $builder->groupStart()
+                ->like('p.product_name', $keyword)
+                ->orLike('m.manufacturer_name', $keyword)
+                ->orLike('p.product_number', $keyword)
+                ->orLike('p.jan_code', $keyword)
+                ->orLike('p.sku_code', $keyword)
+                ->groupEnd();
+            
+            // 廃盤商品を除外
+            $builder->groupStart()
+                ->where('p.deletion_type IS NULL')
+                ->orWhere('p.deletion_type', 0)
+                ->orWhere('p.deletion_scheduled_date >', date('Y-m-d'))
+                ->groupEnd();
+            
+            $totalCount = $builder->countAllResults(false);
+            
+            $products = $builder
+                ->orderBy('p.manufacturer_code')
+                ->orderBy('p.product_number')
+                ->orderBy('p.jan_code')
+                ->limit($limit, ($page - 1) * $limit)
+                ->get()->getResultArray();
+
+            // データ整形
+            foreach ($products as &$product) {
+                $product['selling_price'] = (float)($product['selling_price'] ?? 0);
+                $product['m_unit_price'] = (float)($product['m_unit_price'] ?? 0);
+                $product['cost_price'] = (float)($product['cost_price'] ?? 0);
+                $product['size_name'] = $this->generateSizeName($product['size_code']);
+                $product['color_name'] = $this->generateColorName($product['color_code']);
+            }
+
+            $totalPages = ceil($totalCount / $limit);
+            $hasNextPage = $page < $totalPages;
+            $hasPrevPage = $page > 1;
+
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => $products,
+                'pagination' => [
+                    'current_page' => $page,
+                    'total_count' => $totalCount,
+                    'per_page' => $limit,
+                    'total_pages' => $totalPages,
+                    'has_next_page' => $hasNextPage,
+                    'has_prev_page' => $hasPrevPage,
+                    'from' => $totalCount > 0 ? ($page - 1) * $limit + 1 : 0,
+                    'to' => min($page * $limit, $totalCount)
+                ],
+                'keyword' => $keyword
+            ]);
+
+        } catch (\Exception $e) {
+            log_message('error', '全商品検索エラー: ' . $e->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'success' => false,
+                'error' => '検索処理中にエラーが発生しました: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * サイズ名称生成（簡易版）
+     */
+    private function generateSizeName($sizeCode)
+    {
+        if (empty($sizeCode)) {
+            return 'F';
+        }
+        
+        $sizeMap = [
+            'XS' => 'XS', 'S' => 'S', 'M' => 'M', 'L' => 'L', 'XL' => 'XL',
+            'XXL' => 'XXL', '2L' => '2L', '3L' => '3L', 'FREE' => 'F'
+        ];
+        
+        $upperSizeCode = strtoupper($sizeCode);
+        return $sizeMap[$upperSizeCode] ?? $sizeCode;
+    }
+
+    /**
+     * カラー名称生成（簡易版）
+     */
+    private function generateColorName($colorCode)
+    {
+        if (empty($colorCode)) {
+            return '-';
+        }
+        
+        $colorMap = [
+            'BK' => '黒', 'WH' => '白', 'RD' => '赤', 'BL' => '青', 'GR' => '緑',
+            'YE' => '黄', 'PK' => 'ピンク', 'GY' => 'グレー', 'NV' => 'ネイビー', 'BR' => 'ブラウン'
+        ];
+        
+        $upperCode = strtoupper($colorCode);
+        return $colorMap[$upperCode] ?? $colorCode;
+    }
+
+
 }
