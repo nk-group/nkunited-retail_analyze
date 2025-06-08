@@ -402,6 +402,19 @@ $this->setData([
 document.addEventListener('DOMContentLoaded', function() {
     console.log('=== 商品販売分析 単品分析フォーム初期化 ===');
     
+    // URL設定の取得
+    const body = document.body;
+    const baseUrl = body.dataset.baseUrl || '';
+    const siteUrl = body.dataset.siteUrl || '';
+    const apiBase = body.dataset.apiBase || '';
+    
+    if (!baseUrl || !siteUrl || !apiBase) {
+        console.error('URL設定が不正です:', { baseUrl, siteUrl, apiBase });
+        return;
+    }
+    
+    console.log('URL設定完了:', { baseUrl, siteUrl, apiBase });
+    
     // 重要な要素の存在確認
     const elements = {
         manufacturerCode: document.getElementById('manufacturerCode'),
@@ -453,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function validateManufacturerCode(code) {
         console.log('メーカーコード検証開始:', code);
         
-        const searchUrl = `<?= site_url('sales-analysis/search-makers') ?>?keyword=${encodeURIComponent(code)}&exact=1`;
+        const searchUrl = `${apiBase}/search-makers?keyword=${encodeURIComponent(code)}&exact=1`;
         
         fetch(searchUrl, {
             method: 'GET',
@@ -506,7 +519,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 品番存在確認
     function validateProductNumber(manufacturerCode, productNumber) {
-        const validateUrl = `<?= site_url('sales-analysis/validate-product-number') ?>?manufacturer_code=${encodeURIComponent(manufacturerCode)}&product_number=${encodeURIComponent(productNumber)}`;
+        const validateUrl = `${apiBase}/validate-product-number?manufacturer_code=${encodeURIComponent(manufacturerCode)}&product_number=${encodeURIComponent(productNumber)}`;
         
         fetch(validateUrl, {
             method: 'GET',
@@ -538,7 +551,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function fetchProductList(manufacturerCode, productNumber) {
         console.log('品番リスト取得開始:', manufacturerCode, productNumber);
         
-        const searchUrl = `<?= site_url('sales-analysis/search-products') ?>?manufacturer_code=${encodeURIComponent(manufacturerCode)}&keyword=${encodeURIComponent(productNumber)}`;
+        const searchUrl = `${apiBase}/search-products?manufacturer_code=${encodeURIComponent(manufacturerCode)}&keyword=${encodeURIComponent(productNumber)}`;
         
         fetch(searchUrl, {
             method: 'GET',
@@ -679,7 +692,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function fetchTargetProducts(product) {
         console.log('JANコード取得開始:', product);
         
-        const searchUrl = `<?= site_url('sales-analysis/get-target-products') ?>?manufacturer_code=${encodeURIComponent(currentManufacturerCode)}&product_number=${encodeURIComponent(currentProductNumber)}&product_name=${encodeURIComponent(product.product_name)}`;
+        const searchUrl = `${apiBase}/get-target-products?manufacturer_code=${encodeURIComponent(currentManufacturerCode)}&product_number=${encodeURIComponent(currentProductNumber)}&product_name=${encodeURIComponent(product.product_name)}`;
         
         fetch(searchUrl, {
             method: 'GET',
@@ -747,9 +760,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // === URLコピー機能 ===
     function showUrlCopySection() {
         if (currentJanCodes.length > 0) {
-            const baseUrl = '<?= site_url('sales-analysis/single-product/result') ?>';
+            const resultUrl = `${siteUrl}/sales-analysis/single-product/result`;
             const janCodesParam = currentJanCodes.join(',');
-            const quickUrl = `${baseUrl}?jan_codes=${encodeURIComponent(janCodesParam)}`;
+            const quickUrl = `${resultUrl}?jan_codes=${encodeURIComponent(janCodesParam)}`;
             
             elements.quickAnalysisUrl.value = quickUrl;
             elements.urlCopySection.style.display = 'block';
@@ -886,7 +899,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentKeyword = keyword;
         currentPage = page;
 
-        const searchUrl = `<?= site_url('sales-analysis/search-makers') ?>?keyword=${encodeURIComponent(keyword)}&page=${page}`;
+        const searchUrl = `${apiBase}/search-makers?keyword=${encodeURIComponent(keyword)}&page=${page}`;
 
         fetch(searchUrl, {
             method: 'GET',
@@ -1152,7 +1165,7 @@ document.addEventListener('DOMContentLoaded', function() {
         currentProductKeyword = keyword;
         currentProductPage = page;
 
-        const searchUrl = `<?= site_url('sales-analysis/search-products') ?>?manufacturer_code=${encodeURIComponent(currentManufacturerCode)}&keyword=${encodeURIComponent(keyword)}&page=${page}`;
+        const searchUrl = `${apiBase}/search-products?manufacturer_code=${encodeURIComponent(currentManufacturerCode)}&keyword=${encodeURIComponent(keyword)}&page=${page}`;
 
         fetch(searchUrl, {
             method: 'GET',

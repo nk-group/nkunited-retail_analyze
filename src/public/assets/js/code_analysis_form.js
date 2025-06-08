@@ -17,6 +17,9 @@ class CodeAnalysisForm {
         this.totalProductSearchPages = 1;
         this.selectedProductFromModal = null;
         this.currentSearchRowIndex = null;
+        this.baseUrl = '';
+        this.siteUrl = '';
+        this.apiBase = '';
         
         this.init();
     }
@@ -27,6 +30,10 @@ class CodeAnalysisForm {
     init() {
         console.log('=== CodeAnalysisForm 初期化開始 ===');
         
+        if (!this.initializeUrls()) {
+            return;
+        }
+        
         if (!this.initializeElements()) {
             return;
         }
@@ -36,6 +43,33 @@ class CodeAnalysisForm {
         this.initializeProductSearchModal();
         
         console.log('=== CodeAnalysisForm 初期化完了 ===');
+    }
+    
+    /**
+     * URL設定の初期化
+     */
+    initializeUrls() {
+        const body = document.body;
+        this.baseUrl = body.dataset.baseUrl || '';
+        this.siteUrl = body.dataset.siteUrl || '';
+        this.apiBase = body.dataset.apiBase || '';
+        
+        if (!this.baseUrl || !this.siteUrl || !this.apiBase) {
+            console.error('URL設定が不正です:', {
+                baseUrl: this.baseUrl,
+                siteUrl: this.siteUrl,
+                apiBase: this.apiBase
+            });
+            return false;
+        }
+        
+        console.log('URL設定完了:', {
+            baseUrl: this.baseUrl,
+            siteUrl: this.siteUrl,
+            apiBase: this.apiBase
+        });
+        
+        return true;
     }
     
     /**
@@ -462,9 +496,7 @@ class CodeAnalysisForm {
         try {
             this.showCodeValidationMessage(index, '商品情報を取得中...', 'info');
             
-            // ベースURLを動的に取得して正しいパスを構築
-            const baseUrl = window.location.pathname.split('/')[1]; // 'retail_analyze' を取得
-            const apiUrl = `${window.location.origin}/${baseUrl}/sales-analysis/validate-product-code?code=${encodeURIComponent(code)}&code_type=${this.currentCodeType}`;
+            const apiUrl = `${this.apiBase}/validate-product-code?code=${encodeURIComponent(code)}&code_type=${this.currentCodeType}`;
             
             const response = await fetch(apiUrl, {
                 method: 'GET',
@@ -731,9 +763,7 @@ class CodeAnalysisForm {
      */
     showUrlCopySection() {
         if (this.validProductCodes.length > 0) {
-            // ベースURLを動的に取得して正しいパスを構築
-            const baseUrl = window.location.pathname.split('/')[1]; // 'retail_analyze' を取得
-            const resultUrl = `${window.location.origin}/${baseUrl}/sales-analysis/single-product/result`;
+            const resultUrl = `${this.siteUrl}/sales-analysis/single-product/result`;
             const codesParam = this.validProductCodes.join(',');
             
             let quickUrl;
@@ -1018,18 +1048,30 @@ class CodeAnalysisForm {
      * 商品検索モーダルコンテンツの初期化
      */
     initializeProductSearchModalContent() {
-        document.getElementById('product_search_modal_keyword').value = '';
-        document.getElementById('btn_select_product_modal').disabled = true;
+        const keywordInput = document.getElementById('product_search_modal_keyword');
+        const selectBtn = document.getElementById('btn_select_product_modal');
+        
+        if (keywordInput) keywordInput.value = '';
+        if (selectBtn) selectBtn.disabled = true;
+        
         this.clearSelectedProductInfoModal();
         this.hideAllProductSearchModalElements();
         
-        // 初期検索（全商品を対象とした空検索は実行しない）
+        // 初期メッセージ表示
         this.showProductSearchNoResults();
         const noResultsElement = document.getElementById('product_search_modal_no_results');
-        noResultsElement.innerHTML = `
-            <i class="bi bi-search me-2"></i>
-            検索キーワードを入力して商品を検索してください。
-        `;
+        if (noResultsElement) {
+            noResultsElement.innerHTML = `
+                <div class="text-center">
+                    <i class="bi bi-search fs-1 text-muted mb-3"></i>
+                    <h6 class="text-muted">商品を検索してください</h6>
+                    <p class="text-muted small mb-0">
+                        商品名、メーカー名、品番、JANコード、SKUコードで検索できます<br>
+                        2文字以上のキーワードを入力してください
+                    </p>
+                </div>
+            `;
+        }
     }
     
     /**
@@ -1086,11 +1128,9 @@ class CodeAnalysisForm {
         this.currentProductSearchPage = page;
 
         try {
-            // ベースURLを動的に取得して正しいパスを構築
-            const baseUrl = window.location.pathname.split('/')[1]; // 'retail_analyze' を取得
-            const searchUrl = `${window.location.origin}/${baseUrl}/sales-analysis/search-all-products?keyword=${encodeURIComponent(keyword)}&page=${page}`;
+            const searchUrl = `${this.apiBase}/search-all-products?keyword=${encodeURIComponent(keyword)}&page=${page}`;
             
-            console.log('Search URL:', searchUrl); // デバッグ用
+            console.log('Search URL:', searchUrl);
 
             const response = await fetch(searchUrl, {
                 method: 'GET',
@@ -1188,36 +1228,6 @@ class CodeAnalysisForm {
                 <br><small class="text-muted mt-2">
                     しばらく時間をおいて再度お試しください。
                 </small>
-            `;
-        }
-    }
-    
-    /**
-     * 商品検索モーダルコンテンツの初期化
-     */
-    initializeProductSearchModalContent() {
-        const keywordInput = document.getElementById('product_search_modal_keyword');
-        const selectBtn = document.getElementById('btn_select_product_modal');
-        
-        if (keywordInput) keywordInput.value = '';
-        if (selectBtn) selectBtn.disabled = true;
-        
-        this.clearSelectedProductInfoModal();
-        this.hideAllProductSearchModalElements();
-        
-        // 初期メッセージ表示
-        this.showProductSearchNoResults();
-        const noResultsElement = document.getElementById('product_search_modal_no_results');
-        if (noResultsElement) {
-            noResultsElement.innerHTML = `
-                <div class="text-center">
-                    <i class="bi bi-search fs-1 text-muted mb-3"></i>
-                    <h6 class="text-muted">商品を検索してください</h6>
-                    <p class="text-muted small mb-0">
-                        商品名、メーカー名、品番、JANコード、SKUコードで検索できます<br>
-                        2文字以上のキーワードを入力してください
-                    </p>
-                </div>
             `;
         }
     }

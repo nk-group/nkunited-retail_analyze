@@ -16,7 +16,10 @@
     
     <?= $this->renderSection('styles') ?>
 </head>
-<body class="d-flex flex-column min-vh-100 <?= isset($bodyClass) ? esc($bodyClass) : '' ?>">
+<body class="d-flex flex-column min-vh-100 <?= isset($bodyClass) ? esc($bodyClass) : '' ?>" 
+      data-base-url="<?= base_url() ?>" 
+      data-site-url="<?= site_url() ?>"
+      data-api-base="<?= site_url('sales-analysis') ?>">
 
     <?= $this->include('templates/navbar') ?>
 
