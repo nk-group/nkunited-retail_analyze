@@ -109,14 +109,15 @@ $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
     });
     
     // 集計結果 - JANコード/SKUコード直接指定
-    $routes->get('single-product/result', 'SalesAnalysisController::singleProductResult');
+    //$routes->get('single-product/result', 'SalesAnalysisController::singleProductResult');
     
-    // Ajax API
+    // Ajax API（認証が必要）
     $routes->get('search-makers', 'SalesAnalysisController::searchMakers');
     $routes->get('search-products', 'SalesAnalysisController::searchProducts');
     $routes->get('get-target-products', 'SalesAnalysisController::getTargetProducts');
     $routes->get('validate-product-number', 'SalesAnalysisController::validateProductNumber');
     $routes->get('search-all-products', 'SalesAnalysisController::searchAllProducts');
+    $routes->get('validate-product-code', 'SalesAnalysisController::validateProductCode');
     
     // 従来のルート
     $routes->post('execute', 'SalesAnalysisController::execute');

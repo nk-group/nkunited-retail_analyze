@@ -4,8 +4,8 @@
 <div class="container-fluid sales-analysis" style="max-width: 1200px;">
     <!-- ヘッダーセクション -->
     <div class="header-section">
-        <h1 class="page-title"><i class="bi bi-upc-scan me-3"></i>商品販売分析システム</h1>
-        <p class="page-subtitle">コード直接指定による単品売上分析・収益性分析・在庫処分判定</p>
+        <h1 class="page-title"><i class="bi bi-search me-3"></i>商品販売分析システム</h1>
+        <p class="page-subtitle">コード指定による商品分析・複数商品同時分析</p>
     </div>
 
     <!-- エラー・成功メッセージ -->
@@ -45,45 +45,41 @@
         <div class="step-number" id="step1-number">1</div>
         <div class="step-content">
             <div class="form-group">
-                <label class="form-label fw-bold">商品コード種類</label>
+                <label class="form-label fw-bold">分析対象コード種類</label>
                 <div class="code-type-selection">
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="code_type" id="codeTypeJan" value="jan_code" checked>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" id="codeTypeJan" name="code_type" value="jan_code" checked>
                         <label class="form-check-label" for="codeTypeJan">
                             <i class="bi bi-upc-scan me-2"></i>JANコード（バーコード）
                         </label>
                     </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="code_type" id="codeTypeSku" value="sku_code">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" id="codeTypeSku" name="code_type" value="sku_code">
                         <label class="form-check-label" for="codeTypeSku">
-                            <i class="bi bi-box-seam me-2"></i>SKUコード（在庫管理コード）
+                            <i class="bi bi-tag me-2"></i>SKUコード（在庫管理コード）
                         </label>
                     </div>
                 </div>
-                <small class="text-muted">
-                    分析対象の商品コード種類を選択してください。画面全体で統一されます。
-                </small>
-                <div id="code-type-message"></div>
             </div>
         </div>
     </div>
 
     <!-- Step 2: 商品コード入力 -->
     <div class="step-container" id="step2">
-        <div class="step-number completed" id="step2-number">2</div>
+        <div class="step-number" id="step2-number">2</div>
         <div class="step-content">
             <div class="form-group">
-                <label class="form-label fw-bold">商品コード入力</label>
                 <div class="product-input-header">
-                    <span class="current-code-type" id="currentCodeType">JANコード</span>を入力してください
-                    <button type="button" class="btn btn-outline-success btn-sm ms-3" id="addProductBtn">
-                        <i class="bi bi-plus-circle me-2"></i>商品を追加
+                    <label class="form-label fw-bold">
+                        <span id="currentCodeType">JANコード</span>入力
+                    </label>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="addProductBtn">
+                        <i class="bi bi-plus-circle me-2"></i>行追加
                     </button>
                 </div>
                 
-                <!-- 商品入力リスト -->
                 <div class="product-input-list" id="productInputList">
-                    <!-- 初期の1行目 -->
+                    <!-- 初期行（JavaScriptで動的生成される内容と同じ構造） -->
                     <div class="product-input-row" data-index="1">
                         <div class="row-header">
                             <span class="row-number">1</span>
@@ -93,15 +89,15 @@
                         </div>
                         
                         <div class="product-input-content">
-                            <!-- コード入力エリア -->
                             <div class="code-input-area">
                                 <div class="input-group">
                                     <input type="text" 
                                            class="form-control product-code-input" 
                                            id="productCode1" 
                                            name="product_code_1"
-                                           placeholder="コードを入力してください" 
-                                           data-index="1">
+                                           placeholder="JANコードを入力してください" 
+                                           data-index="1"
+                                           autocomplete="off">
                                     <button type="button" 
                                             class="btn btn-outline-secondary product-search-btn" 
                                             data-index="1"
@@ -113,7 +109,6 @@
                                 <div class="code-validation-message" id="codeMessage1"></div>
                             </div>
                             
-                            <!-- 商品情報表示エリア -->
                             <div class="product-info-display" id="productInfo1" style="display: none;">
                                 <div class="product-info-grid">
                                     <div class="info-item">
@@ -154,45 +149,46 @@
                     </div>
                 </div>
                 
-                <div id="product-input-message" class="mt-3"></div>
+                <input type="hidden" id="productCodesInput" name="product_codes" value="[]">
             </div>
         </div>
     </div>
 
-    <!-- Step 3: 分析実行 -->
+    <!-- Step 3: 集計実行 -->
     <div class="step-container" id="step3">
         <div class="step-number disabled" id="step3-number">3</div>
         <div class="step-content">
             <div class="form-group">
-                <label class="form-label fw-bold">分析実行</label>
-                <p style="color: #6c757d; margin-bottom: 15px;">
-                    入力された商品コードの販売状況を集計します。品出し日から現在までの週別販売推移、原価回収率、在庫処分判定などを表示します。
-                </p>
-                
-                <!-- 原価計算方式選択 -->
-                <div class="cost-method-selection mb-3">
-                    <label class="form-label">原価計算方式:</label>
+                <label class="form-label fw-bold">原価計算方式選択</label>
+                <div class="cost-method-selection">
                     <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="cost_method" id="costMethodAverage" value="average" checked>
-                        <label class="form-check-label" for="costMethodAverage">平均原価法</label>
+                        <input class="form-check-input" type="radio" id="costMethodAverage" name="cost_method" value="average" checked>
+                        <label class="form-check-label" for="costMethodAverage">
+                            平均原価法
+                        </label>
                     </div>
                     <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="radio" name="cost_method" id="costMethodLatest" value="latest">
-                        <label class="form-check-label" for="costMethodLatest">最終仕入原価法</label>
+                        <input class="form-check-input" type="radio" id="costMethodLatest" name="cost_method" value="latest">
+                        <label class="form-check-label" for="costMethodLatest">
+                            最終仕入原価法
+                        </label>
                     </div>
                 </div>
-                
+            </div>
+            
+            <div class="analysis-summary" id="analysisSummary" style="display: none;">
+                <h6><i class="bi bi-check-circle me-2"></i>分析対象サマリー</h6>
+                <div class="summary-content" id="summaryText">商品コードを入力してください</div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label fw-bold">集計実行</label>
+                <p style="color: #6c757d; margin-bottom: 15px;">
+                    指定された商品コードの販売状況を集計します。品出し日から現在までの週別販売推移、原価回収率、在庫処分判定などを表示します。
+                </p>
                 <button type="submit" class="btn btn-execute" id="executeBtn" disabled>
                     <i class="bi bi-graph-up me-2"></i>販売分析を実行
                 </button>
-                
-                <!-- 分析対象サマリー -->
-                <div class="analysis-summary" id="analysisSummary" style="display: none;">
-                    <h6><i class="bi bi-info-circle me-2"></i>分析対象サマリー</h6>
-                    <div class="summary-content">
-                        <span id="summaryText">商品コードを入力してください</span>
-                    </div>
-                </div>
                 
                 <div class="warning-box">
                     <strong><i class="bi bi-exclamation-triangle me-2"></i>注意事項:</strong>
@@ -200,15 +196,12 @@
                         <li>集計には数秒から数十秒かかる場合があります</li>
                         <li>品出し日が設定されていない商品は集計できません</li>
                         <li>仕入データまたは移動データがない場合はエラーになります</li>
-                        <li>廃盤商品は分析対象から除外されます</li>
+                        <li>複数の商品グループが混在する場合は、代表的な商品情報で表示されます</li>
                     </ul>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- 隠しフィールド：商品コードリスト（JSON形式） -->
-    <input type="hidden" name="product_codes" id="productCodesInput" value="[]">
 
     <?= form_close() ?>
 
@@ -257,14 +250,14 @@
                 <div class="product-search-form">
                     <div class="row g-3">
                         <div class="col-md-8">
-                            <label for="modalSearchKeyword" class="form-label">検索キーワード</label>
+                            <label for="product_search_modal_keyword" class="form-label">検索キーワード</label>
                             <input type="text" 
                                    class="form-control" 
-                                   id="modalSearchKeyword" 
-                                   placeholder="商品名、メーカー名、品番、またはコードを入力">
+                                   id="product_search_modal_keyword" 
+                                   placeholder="商品名、メーカー名、品番、JANコード、SKUコードを入力">
                         </div>
                         <div class="col-md-4 d-flex align-items-end">
-                            <button type="button" class="btn btn-primary w-100" id="modalSearchBtn">
+                            <button type="button" class="btn btn-primary w-100" id="btn_product_search_modal">
                                 <i class="bi bi-search me-2"></i>検索
                             </button>
                         </div>
@@ -272,19 +265,31 @@
                 </div>
 
                 <!-- 選択された商品情報表示 -->
-                <div id="selectedProductInfo" class="selected-product-info" style="display: none;">
+                <div id="selected_product_modal_info" class="selected-product-info" style="display: none;">
                     <div class="info-header">
                         <i class="bi bi-check-circle-fill me-2"></i>選択中の商品
                     </div>
-                    <div class="info-content" id="selectedProductContent">
-                        <!-- JavaScriptで動的に設定 -->
+                    <div class="info-content">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>コード:</strong> <span id="selected_product_modal_code">-</span><br>
+                                <strong>品番:</strong> <span id="selected_product_modal_number">-</span><br>
+                                <strong>商品名:</strong> <span id="selected_product_modal_name">-</span><br>
+                                <strong>メーカー:</strong> <span id="selected_product_modal_manufacturer">-</span>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>カラー:</strong> <span id="selected_product_modal_color">-</span><br>
+                                <strong>サイズ:</strong> <span id="selected_product_modal_size">-</span><br>
+                                <strong>価格:</strong> <span id="selected_product_modal_price">-</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- 検索結果情報 -->
-                <div id="searchResultsInfo" class="search-results-info" style="display: none;">
+                <div id="product_search_modal_results_info" class="search-results-info" style="display: none;">
                     <i class="bi bi-info-circle me-2"></i>
-                    <span id="resultsCountText">-</span>
+                    <span id="product_search_modal_results_count_text">-</span>
                 </div>
 
                 <!-- 検索結果テーブル -->
@@ -292,35 +297,35 @@
                     <table class="table table-hover product-search-table">
                         <thead class="table-light">
                             <tr>
-                                <th width="15%">JANコード</th>
-                                <th width="10%">SKU</th>
-                                <th width="10%">品番</th>
-                                <th width="20%">商品名</th>
+                                <th width="15%">コード</th>
+                                <th width="12%">品番</th>
+                                <th width="25%">商品名</th>
+                                <th width="15%">メーカー</th>
                                 <th width="8%">カラー</th>
                                 <th width="8%">サイズ</th>
-                                <th width="15%">メーカー</th>
-                                <th width="14%">価格情報</th>
+                                <th width="10%">売価</th>
+                                <th width="10%">M単価</th>
                             </tr>
                         </thead>
-                        <tbody id="productSearchResults">
+                        <tbody id="product_search_modal_results">
                             <!-- Ajax で結果を表示 -->
                         </tbody>
                     </table>
                 </div>
 
                 <!-- ページング -->
-                <div id="modalPagination" class="modal-pagination" style="display: none;">
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="prevPageBtn" disabled>
+                <div id="product_search_modal_pagination" class="modal-pagination" style="display: none;">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_product_search_prev_page" disabled>
                         <i class="bi bi-chevron-left"></i> 前へ
                     </button>
-                    <span class="page-info" id="pageInfo">1 / 1</span>
-                    <button type="button" class="btn btn-sm btn-outline-primary" id="nextPageBtn" disabled>
+                    <span class="page-info" id="product_search_modal_page_info">1 / 1</span>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="btn_product_search_next_page" disabled>
                         次へ <i class="bi bi-chevron-right"></i>
                     </button>
                 </div>
 
                 <!-- ローディング表示 -->
-                <div id="modalLoading" class="text-center py-4" style="display: none;">
+                <div id="product_search_modal_loading" class="text-center py-4" style="display: none;">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">検索中...</span>
                     </div>
@@ -328,7 +333,7 @@
                 </div>
 
                 <!-- 結果なし表示 -->
-                <div id="modalNoResults" class="text-center py-4 text-muted" style="display: none;">
+                <div id="product_search_modal_no_results" class="text-center py-4 text-muted" style="display: none;">
                     <i class="bi bi-search me-2"></i>
                     該当する商品が見つかりませんでした。
                 </div>
@@ -337,7 +342,7 @@
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                     <i class="bi bi-x-circle me-2"></i>キャンセル
                 </button>
-                <button type="button" class="btn btn-primary" id="selectProductBtn" disabled>
+                <button type="button" class="btn btn-primary" id="btn_select_product_modal" disabled>
                     <i class="bi bi-check-circle me-2"></i>選択
                 </button>
             </div>
@@ -356,6 +361,5 @@ $this->setData([
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-<!-- 専用JavaScriptファイルの読み込み -->
 <script src="<?= base_url('assets/js/code_analysis_form.js') ?>"></script>
 <?= $this->endSection() ?>

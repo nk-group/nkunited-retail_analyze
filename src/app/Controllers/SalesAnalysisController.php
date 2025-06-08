@@ -14,12 +14,14 @@ class SalesAnalysisController extends BaseController
     protected $manufacturerModel;
     protected $productModel;
     protected $analysisService;
+    protected $db;
 
     public function __construct()
     {
         $this->manufacturerModel = new ManufacturerModel();
         $this->productModel = new ProductModel();
         $this->analysisService = new SingleProductAnalysisService();
+        $this->db = \Config\Database::connect();
         helper(['form', 'url']);
     }
 
@@ -910,7 +912,6 @@ class SalesAnalysisController extends BaseController
         }
     }
 
-
     /**
      * コード分析 - 集計指示画面
      */
@@ -999,7 +1000,11 @@ class SalesAnalysisController extends BaseController
      */
     public function searchAllProducts()
     {
+        // ログでメソッド呼び出しを確認
+        log_message('info', 'searchAllProducts called - Start');
+        
         if (!$this->request->isAJAX()) {
+            log_message('error', 'searchAllProducts: Not AJAX request');
             return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
         }
 
@@ -1007,12 +1012,33 @@ class SalesAnalysisController extends BaseController
         $page = (int) ($this->request->getGet('page') ?? 1);
         $limit = 20;
         
+        log_message('info', "searchAllProducts: keyword={$keyword}, page={$page}");
+        
         try {
-            if (empty($keyword) || strlen($keyword) < 2) {
+            // 空のキーワードでも検索を許可（初期表示用）
+            if (!empty($keyword) && strlen($keyword) < 2) {
+                log_message('info', 'searchAllProducts: keyword too short');
                 return $this->response->setJSON([
                     'success' => false,
-                    'error' => '検索キーワードは2文字以上で入力してください。'
+                    'error' => '検索キーワードは2文字以上で入力してください。',
+                    'data' => [],
+                    'pagination' => [
+                        'current_page' => 1,
+                        'total_count' => 0,
+                        'per_page' => $limit,
+                        'total_pages' => 0,
+                        'has_next_page' => false,
+                        'has_prev_page' => false,
+                        'from' => 0,
+                        'to' => 0
+                    ],
+                    'keyword' => $keyword
                 ]);
+            }
+
+            // データベース接続確認
+            if (!$this->db) {
+                throw new \Exception('データベース接続が確立されていません');
             }
 
             $builder = $this->db->table('products p');
@@ -1026,6 +1052,7 @@ class SalesAnalysisController extends BaseController
                 'p.selling_price',
                 'p.m_unit_price',
                 'p.cost_price',
+                'p.last_purchase_cost',
                 'p.manufacturer_code',
                 'm.manufacturer_name',
                 'p.deletion_type',
@@ -1034,23 +1061,37 @@ class SalesAnalysisController extends BaseController
             
             $builder->join('manufacturers m', 'p.manufacturer_code = m.manufacturer_code', 'left');
             
-            // 検索条件
-            $builder->groupStart()
-                ->like('p.product_name', $keyword)
-                ->orLike('m.manufacturer_name', $keyword)
-                ->orLike('p.product_number', $keyword)
-                ->orLike('p.jan_code', $keyword)
-                ->orLike('p.sku_code', $keyword)
-                ->groupEnd();
+            // 検索条件（キーワードがある場合のみ）
+            if (!empty($keyword)) {
+                $builder->groupStart()
+                    ->like('p.product_name', $keyword)
+                    ->orLike('m.manufacturer_name', $keyword)
+                    ->orLike('p.product_number', $keyword)
+                    ->orLike('p.jan_code', $keyword);
+                
+                // SKUコードがNULLでない場合のみ検索条件に含める
+                $builder->orWhere('p.sku_code IS NOT NULL')
+                       ->like('p.sku_code', $keyword);
+                
+                $builder->groupEnd();
+            }
             
             // 廃盤商品を除外
             $builder->groupStart()
                 ->where('p.deletion_type IS NULL')
                 ->orWhere('p.deletion_type', 0)
                 ->orWhere('p.deletion_scheduled_date >', date('Y-m-d'))
+                ->orWhere('p.deletion_scheduled_date IS NULL')
                 ->groupEnd();
             
-            $totalCount = $builder->countAllResults(false);
+            // 総件数取得
+            $countBuilder = clone $builder;
+            $totalCount = $countBuilder->countAllResults();
+            
+            // キーワードなしで件数が多すぎる場合は制限
+            if (empty($keyword) && $totalCount > 1000) {
+                $totalCount = 1000;
+            }
             
             $products = $builder
                 ->orderBy('p.manufacturer_code')
@@ -1059,20 +1100,28 @@ class SalesAnalysisController extends BaseController
                 ->limit($limit, ($page - 1) * $limit)
                 ->get()->getResultArray();
 
+            log_message('info', "searchAllProducts: found {$totalCount} total, returning " . count($products) . " products");
+
             // データ整形
             foreach ($products as &$product) {
                 $product['selling_price'] = (float)($product['selling_price'] ?? 0);
                 $product['m_unit_price'] = (float)($product['m_unit_price'] ?? 0);
                 $product['cost_price'] = (float)($product['cost_price'] ?? 0);
+                $product['last_purchase_cost'] = (float)($product['last_purchase_cost'] ?? 0);
                 $product['size_name'] = $this->generateSizeName($product['size_code']);
                 $product['color_name'] = $this->generateColorName($product['color_code']);
+                
+                // 有効原価の決定
+                $product['effective_cost_price'] = $product['last_purchase_cost'] > 0 
+                    ? $product['last_purchase_cost'] 
+                    : $product['cost_price'];
             }
 
-            $totalPages = ceil($totalCount / $limit);
+            $totalPages = $totalCount > 0 ? ceil($totalCount / $limit) : 0;
             $hasNextPage = $page < $totalPages;
             $hasPrevPage = $page > 1;
 
-            return $this->response->setJSON([
+            $response = [
                 'success' => true,
                 'data' => $products,
                 'pagination' => [
@@ -1085,15 +1134,185 @@ class SalesAnalysisController extends BaseController
                     'from' => $totalCount > 0 ? ($page - 1) * $limit + 1 : 0,
                     'to' => min($page * $limit, $totalCount)
                 ],
-                'keyword' => $keyword
-            ]);
+                'keyword' => $keyword ?? ''
+            ];
+            
+            log_message('info', 'searchAllProducts: success response prepared');
+            return $this->response->setJSON($response);
 
         } catch (\Exception $e) {
             log_message('error', '全商品検索エラー: ' . $e->getMessage());
+            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
+            
             return $this->response->setStatusCode(500)->setJSON([
                 'success' => false,
-                'error' => '検索処理中にエラーが発生しました: ' . $e->getMessage()
+                'error' => '検索処理中にエラーが発生しました: ' . $e->getMessage(),
+                'data' => [],
+                'pagination' => [
+                    'current_page' => 1,
+                    'total_count' => 0,
+                    'per_page' => $limit,
+                    'total_pages' => 0,
+                    'has_next_page' => false,
+                    'has_prev_page' => false,
+                    'from' => 0,
+                    'to' => 0
+                ],
+                'keyword' => $keyword ?? ''
             ]);
+        }
+    }
+
+    /**
+     * 商品コード検証API（Ajax用）
+     */
+    public function validateProductCode()
+    {
+        if (!$this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
+        }
+
+        $code = $this->request->getGet('code');
+        $codeType = $this->request->getGet('code_type');
+        
+        try {
+            if (empty($code) || empty($codeType)) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'valid' => false,
+                    'message' => '必要なパラメータが不足しています。'
+                ]);
+            }
+
+            // 形式チェック
+            $isValidFormat = $this->isValidCodeFormat($code, $codeType);
+            if (!$isValidFormat) {
+                return $this->response->setJSON([
+                    'success' => true,
+                    'valid' => false,
+                    'message' => 'コード形式が正しくありません。',
+                    'product_info' => null
+                ]);
+            }
+
+            // 商品情報取得
+            $productInfo = $this->getProductInfoByCode($code, $codeType);
+            
+            if (!$productInfo) {
+                return $this->response->setJSON([
+                    'success' => true,
+                    'valid' => false,
+                    'message' => '該当する商品が見つかりません。',
+                    'product_info' => null
+                ]);
+            }
+
+            return $this->response->setJSON([
+                'success' => true,
+                'valid' => true,
+                'message' => '商品情報を取得しました。',
+                'product_info' => $productInfo
+            ]);
+
+        } catch (\Exception $e) {
+            log_message('error', '商品コード検証エラー: ' . $e->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'success' => false,
+                'valid' => false,
+                'message' => 'システムエラーが発生しました。',
+                'product_info' => null
+            ]);
+        }
+    }
+
+    /**
+     * コード形式の基本チェック
+     */
+    private function isValidCodeFormat($code, $codeType)
+    {
+        if ($codeType === 'jan_code') {
+            // JANコード: 8桁または13桁の数字
+            return preg_match('/^\d{8}$|^\d{13}$/', $code);
+        } else {
+            // SKUコード: 英数字、ハイフン、アンダースコア（1-50文字）
+            return preg_match('/^[A-Za-z0-9\-_]{1,50}$/', $code);
+        }
+    }
+
+    /**
+     * 商品情報の取得
+     */
+    private function getProductInfoByCode($code, $codeType)
+    {
+        try {
+            // データベース接続確認
+            if (!$this->db) {
+                log_message('error', 'データベース接続が確立されていません');
+                return null;
+            }
+
+            $builder = $this->db->table('products p');
+            $builder->select([
+                'p.jan_code',
+                'p.sku_code',
+                'p.manufacturer_code',
+                'p.product_number',
+                'p.product_name',
+                'p.color_code',
+                'p.size_code',
+                'p.selling_price',
+                'p.m_unit_price',
+                'p.cost_price',
+                'p.last_purchase_cost',
+                'p.deletion_type',
+                'p.deletion_scheduled_date',
+                'm.manufacturer_name'
+            ]);
+            
+            $builder->join('manufacturers m', 'p.manufacturer_code = m.manufacturer_code', 'left');
+            
+            if ($codeType === 'jan_code') {
+                $builder->where('p.jan_code', $code);
+            } else {
+                $builder->where('p.sku_code', $code);
+            }
+            
+            // 廃盤商品を除外
+            $builder->groupStart()
+                ->where('p.deletion_type IS NULL')
+                ->orWhere('p.deletion_type', 0)
+                ->orWhere('p.deletion_scheduled_date >', date('Y-m-d'))
+                ->orWhere('p.deletion_scheduled_date IS NULL')
+                ->groupEnd();
+            
+            $product = $builder->get()->getRowArray();
+            
+            if (!$product) {
+                return null;
+            }
+
+            // データ整形
+            return [
+                'jan_code' => $product['jan_code'],
+                'sku_code' => $product['sku_code'] ?? '',
+                'manufacturer_code' => $product['manufacturer_code'],
+                'manufacturer_name' => $product['manufacturer_name'] ?? '-',
+                'product_number' => $product['product_number'],
+                'product_name' => $product['product_name'],
+                'color_code' => $product['color_code'],
+                'color_name' => $this->generateColorName($product['color_code']),
+                'size_code' => $product['size_code'],
+                'size_name' => $this->generateSizeName($product['size_code']),
+                'selling_price' => (float)($product['selling_price'] ?? 0),
+                'm_unit_price' => (float)($product['m_unit_price'] ?? 0),
+                'cost_price' => (float)($product['cost_price'] ?? 0),
+                'effective_cost_price' => (float)($product['last_purchase_cost'] ?? $product['cost_price'] ?? 0),
+                'manufacturer' => $product['manufacturer_code'] . ':' . ($product['manufacturer_name'] ?? '-')
+            ];
+
+        } catch (\Exception $e) {
+            log_message('error', '商品情報取得エラー: ' . $e->getMessage());
+            return null;
         }
     }
 
@@ -1132,6 +1351,4 @@ class SalesAnalysisController extends BaseController
         $upperCode = strtoupper($colorCode);
         return $colorMap[$upperCode] ?? $colorCode;
     }
-
-
 }
