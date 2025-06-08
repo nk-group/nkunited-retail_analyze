@@ -1054,7 +1054,6 @@ class CodeAnalysisForm {
         if (keywordInput) keywordInput.value = '';
         if (selectBtn) selectBtn.disabled = true;
         
-        this.clearSelectedProductInfoModal();
         this.hideAllProductSearchModalElements();
         
         // 初期メッセージ表示
@@ -1307,51 +1306,9 @@ class CodeAnalysisForm {
                 this.selectedProductFromModal = product;
                 const selectBtn = document.getElementById('btn_select_product_modal');
                 if (selectBtn) selectBtn.disabled = false;
-                this.updateSelectedProductInfoModal(product);
             });
             
             resultsContainer.appendChild(row);
-        });
-    }
-    
-    /**
-     * 選択された商品情報の更新（モーダル用）
-     */
-    updateSelectedProductInfoModal(product) {
-        const elements = {
-            code: document.getElementById('selected_product_modal_code'),
-            number: document.getElementById('selected_product_modal_number'),
-            name: document.getElementById('selected_product_modal_name'),
-            manufacturer: document.getElementById('selected_product_modal_manufacturer'),
-            color: document.getElementById('selected_product_modal_color'),
-            size: document.getElementById('selected_product_modal_size'),
-            price: document.getElementById('selected_product_modal_price')
-        };
-        
-        const displayCode = this.currentCodeType === 'jan_code' ? product.jan_code : product.sku_code;
-        const priceDisplay = product.selling_price ? `¥${product.selling_price.toLocaleString()}` : '-';
-        
-        if (elements.code) elements.code.textContent = displayCode || '-';
-        if (elements.number) elements.number.textContent = product.product_number || '-';
-        if (elements.name) elements.name.textContent = product.product_name || '-';
-        if (elements.manufacturer) elements.manufacturer.textContent = product.manufacturer_name || '-';
-        if (elements.color) elements.color.textContent = product.color_name || '-';
-        if (elements.size) elements.size.textContent = product.size_name || 'F';
-        if (elements.price) elements.price.textContent = priceDisplay;
-        
-        document.getElementById('selected_product_modal_info').style.display = 'block';
-    }
-    
-    /**
-     * 選択商品情報のクリア（モーダル用）
-     */
-    clearSelectedProductInfoModal() {
-        document.getElementById('selected_product_modal_info').style.display = 'none';
-        
-        const elements = ['code', 'number', 'name', 'manufacturer', 'color', 'size', 'price'];
-        elements.forEach(field => {
-            const element = document.getElementById(`selected_product_modal_${field}`);
-            if (element) element.textContent = '-';
         });
     }
     

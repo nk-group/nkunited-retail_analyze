@@ -264,28 +264,6 @@
                     </div>
                 </div>
 
-                <!-- 選択された商品情報表示 -->
-                <div id="selected_product_modal_info" class="selected-product-info" style="display: none;">
-                    <div class="info-header">
-                        <i class="bi bi-check-circle-fill me-2"></i>選択中の商品
-                    </div>
-                    <div class="info-content">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <strong>コード:</strong> <span id="selected_product_modal_code">-</span><br>
-                                <strong>品番:</strong> <span id="selected_product_modal_number">-</span><br>
-                                <strong>商品名:</strong> <span id="selected_product_modal_name">-</span><br>
-                                <strong>メーカー:</strong> <span id="selected_product_modal_manufacturer">-</span>
-                            </div>
-                            <div class="col-md-6">
-                                <strong>カラー:</strong> <span id="selected_product_modal_color">-</span><br>
-                                <strong>サイズ:</strong> <span id="selected_product_modal_size">-</span><br>
-                                <strong>価格:</strong> <span id="selected_product_modal_price">-</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 検索結果情報 -->
                 <div id="product_search_modal_results_info" class="search-results-info" style="display: none;">
                     <i class="bi bi-info-circle me-2"></i>

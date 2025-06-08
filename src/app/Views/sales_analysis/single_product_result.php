@@ -1,7 +1,7 @@
 <?= $this->extend('layouts/default') ?>
 
 <?= $this->section('content') ?>
-<div class="container-fluid sales-analysis" style="max-width: 1400px;">
+<div class="container-fluid sales-analysis" style="max-width: 1400px;" data-execution-time="<?= $execution_time ?? 0 ?>">
     <!-- ページヘッダー -->
     <div class="action-buttons">
         <a href="<?= site_url('sales-analysis/single-product') ?>" class="btn btn-outline-primary">
@@ -597,100 +597,5 @@ $this->setData([
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('クイック分析結果画面が読み込まれました');
-    console.log('実行時間: <?= $execution_time ?? 0 ?>秒');
-    
-    // 現在のURLを取得してURL共有機能を初期化
-    const currentUrl = window.location.href;
-    const shareUrlInput = document.getElementById('shareUrl');
-    const shareUrlSection = document.getElementById('urlShareSection');
-    const shareUrlBtn = document.getElementById('shareUrlBtn');
-    const copyShareUrlBtn = document.getElementById('copyShareUrlBtn');
-    
-    if (shareUrlInput && shareUrlSection && shareUrlBtn && copyShareUrlBtn) {
-        shareUrlInput.value = currentUrl;
-        
-        // URL共有ボタンのクリックイベント
-        shareUrlBtn.addEventListener('click', function() {
-            if (shareUrlSection.style.display === 'none') {
-                shareUrlSection.style.display = 'block';
-                shareUrlBtn.innerHTML = '<i class="bi bi-eye-slash me-2"></i>URL非表示';
-            } else {
-                shareUrlSection.style.display = 'none';
-                shareUrlBtn.innerHTML = '<i class="bi bi-share me-2"></i>URL共有';
-            }
-        });
-        
-        // URLコピーボタンのクリックイベント
-        copyShareUrlBtn.addEventListener('click', function() {
-            shareUrlInput.select();
-            shareUrlInput.setSelectionRange(0, 99999); // モバイル対応
-            
-            try {
-                navigator.clipboard.writeText(shareUrlInput.value).then(function() {
-                    // コピー成功の表示
-                    const originalText = copyShareUrlBtn.innerHTML;
-                    copyShareUrlBtn.innerHTML = '<i class="bi bi-check me-2"></i>コピー完了';
-                    copyShareUrlBtn.classList.remove('btn-outline-primary');
-                    copyShareUrlBtn.classList.add('btn-success');
-                    
-                    setTimeout(function() {
-                        copyShareUrlBtn.innerHTML = originalText;
-                        copyShareUrlBtn.classList.remove('btn-success');
-                        copyShareUrlBtn.classList.add('btn-outline-primary');
-                    }, 2000);
-                });
-            } catch (err) {
-                // フォールバック: execCommand使用
-                document.execCommand('copy');
-                console.log('URL copied using execCommand');
-            }
-        });
-    }
-    
-    // 折りたたみボタンのアイコン切り替え
-    const collapseElement = document.getElementById('slipDetails');
-    const chevronIcon = document.querySelector('[data-bs-target="#slipDetails"] .bi-chevron-down');
-    
-    if (collapseElement && chevronIcon) {
-        collapseElement.addEventListener('show.bs.collapse', function() {
-            chevronIcon.style.transform = 'rotate(180deg)';
-        });
-        
-        collapseElement.addEventListener('hide.bs.collapse', function() {
-            chevronIcon.style.transform = 'rotate(0deg)';
-        });
-    }
-});
-
-// 対象商品モーダル表示
-function showProductModal() {
-    const modal = document.getElementById('productModal');
-    modal.classList.add('show');
-    document.body.style.overflow = 'hidden';
-}
-
-// 対象商品モーダル非表示
-function hideProductModal() {
-    const modal = document.getElementById('productModal');
-    modal.classList.remove('show');
-    document.body.style.overflow = '';
-}
-
-// モーダル外クリックで閉じる
-document.getElementById('productModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        hideProductModal();
-    }
-});
-
-// ESCキーでモーダルを閉じる
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        hideProductModal();
-    }
-});
-</script>
+<script src="<?= base_url('assets/js/single_product_result.js') ?>"></script>
 <?= $this->endSection() ?>
