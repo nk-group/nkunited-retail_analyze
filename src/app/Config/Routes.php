@@ -119,6 +119,8 @@ $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
     $routes->get('search-all-products', 'SalesAnalysisController::searchAllProducts');
     $routes->get('validate-product-code', 'SalesAnalysisController::validateProductCode');
     
+    $routes->post('generate-ai-data', 'SalesAnalysisController::generateAiDataAjax');
+
     // 従来のルート
     $routes->post('execute', 'SalesAnalysisController::execute');
     $routes->get('result', 'SalesAnalysisController::result');

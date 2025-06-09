@@ -1351,4 +1351,231 @@ class SalesAnalysisController extends BaseController
         $upperCode = strtoupper($colorCode);
         return $colorMap[$upperCode] ?? $colorCode;
     }
+
+    /**
+     * AI分析用データ生成（Ajax用）
+     */
+    public function generateAiDataAjax()
+    {
+        if (!$this->request->isAJAX()) {
+            return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
+        }
+        
+        try {
+            $requestData = $this->request->getJSON(true);
+            $janCodes = $requestData['jan_codes'] ?? [];
+            
+            if (empty($janCodes)) {
+                return $this->response->setJSON([
+                    'success' => false,
+                    'error' => 'JANコードが指定されていません'
+                ]);
+            }
+            
+            log_message('info', 'AI分析データ生成開始: JANコード' . count($janCodes) . '個');
+            
+            // 原価計算方式の設定
+            $costMethod = $requestData['cost_method'] ?? 'average';
+            $this->analysisService->setCostMethod($costMethod);
+            
+            // 分析を再実行
+            $analysisResult = $this->analysisService->executeAnalysisByJanCodes($janCodes);
+            $formattedResult = $this->formatAnalysisResultForJanBase($analysisResult);
+            
+            // AI用テキスト生成
+            $aiText = $this->generateAiAnalysisText($analysisResult, $formattedResult);
+            
+            log_message('info', 'AI分析データ生成完了: 文字数=' . strlen($aiText));
+            
+            return $this->response->setJSON([
+                'success' => true,
+                'ai_text' => $aiText,
+                'character_count' => strlen($aiText),
+                'generation_time' => date('Y-m-d H:i:s')
+            ]);
+            
+        } catch (SingleProductAnalysisException $e) {
+            log_message('error', 'AI分析データ生成エラー（分析例外）: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'error' => '分析データの生成に失敗しました: ' . $e->getMessage()
+            ]);
+            
+        } catch (\Exception $e) {
+            log_message('error', 'AI分析データ生成エラー（一般例外）: ' . $e->getMessage());
+            return $this->response->setJSON([
+                'success' => false,
+                'error' => 'データ生成中にエラーが発生しました'
+            ]);
+        }
+    }
+    
+    /**
+     * AI分析用テキストデータ生成（アパレル・雑貨特化版）
+     */
+    private function generateAiAnalysisText($analysisResult, $formattedResult): string
+    {
+        $representative = $analysisResult['basic_info']['representative_product'];
+        $lastWeek = !empty($analysisResult['weekly_analysis']) ? end($analysisResult['weekly_analysis']) : null;
+        $purchaseInfo = $analysisResult['purchase_info'];
+        $transferInfo = $analysisResult['transfer_info'];
+        $currentStock = $analysisResult['current_stock'];
+        $recommendation = $analysisResult['recommendation'];
+        
+        $text = "=== アパレル・雑貨商品 販売分析データ（AI分析用） ===\n\n";
+        
+        // 商品基本情報（業界特化）
+        $text .= "【商品基本情報】\n";
+        $text .= "商品名: " . $representative['product_name'] . "\n";
+        $text .= "メーカー: " . $representative['manufacturer_name'] . "\n";
+        $text .= "品番: " . $representative['product_number'] . "\n";
+        $text .= "シーズン: " . ($representative['season_code'] ?? '不明') . "\n";
+        $text .= "商品年: " . ($representative['product_year'] ?? '不明') . "\n";
+        $text .= "展開SKU数: " . $analysisResult['basic_info']['total_jan_count'] . "個\n";
+        $text .= "品出し日: " . $transferInfo['first_transfer_date'] . "\n";
+        $text .= "経過日数: " . $formattedResult['header_info']['days_since_transfer'] . "日\n";
+        
+        if ($representative['deletion_scheduled_date']) {
+            $daysToDisposal = (strtotime($representative['deletion_scheduled_date']) - time()) / 86400;
+            $text .= "廃盤予定: あと" . round($daysToDisposal) . "日\n";
+        }
+        $text .= "\n";
+        
+        // 価格戦略情報
+        $text .= "【価格戦略情報】\n";
+        $text .= "M単価（定価）: ¥" . number_format($representative['m_unit_price']) . "\n";
+        $text .= "仕入単価: ¥" . number_format($purchaseInfo['avg_cost_price']) . "\n";
+        $text .= "粗利率: " . number_format((($representative['m_unit_price'] - $purchaseInfo['avg_cost_price']) / $representative['m_unit_price']) * 100, 1) . "%\n";
+        $text .= "現在の平均売価: ¥" . number_format($lastWeek['avg_sales_price'] ?? 0) . "\n";
+        
+        if ($lastWeek && $representative['m_unit_price'] > 0) {
+            $currentDiscountRate = (1 - $lastWeek['avg_sales_price'] / $representative['m_unit_price']) * 100;
+            $text .= "現在の値引率: " . number_format(max(0, $currentDiscountRate), 1) . "%\n";
+        }
+        $text .= "\n";
+        
+        // 財務パフォーマンス
+        $text .= "【財務パフォーマンス】\n";
+        $text .= "総仕入金額: ¥" . number_format($purchaseInfo['total_purchase_cost']) . "\n";
+        $text .= "累計売上金額: ¥" . number_format($lastWeek['cumulative_sales_amount'] ?? 0) . "\n";
+        $text .= "累計粗利: ¥" . number_format($lastWeek['cumulative_gross_profit'] ?? 0) . "\n";
+        $text .= "原価回収率: " . number_format($lastWeek['recovery_rate'] ?? 0, 1) . "%\n";
+        $text .= "残在庫数: " . $currentStock['current_stock_qty'] . "個\n";
+        $text .= "残在庫金額: ¥" . number_format($currentStock['current_stock_value']) . "\n";
+        $text .= "\n";
+        
+        // 週別販売トレンド（アパレル特化）
+        $text .= "【週別販売トレンド】\n";
+        foreach ($analysisResult['weekly_analysis'] as $week) {
+            $priceStatus = '';
+            if ($week['avg_sales_price'] > 0 && $representative['m_unit_price'] > 0) {
+                $discountRate = (1 - $week['avg_sales_price'] / $representative['m_unit_price']) * 100;
+                if ($discountRate < 5) {
+                    $priceStatus = '定価';
+                } elseif ($discountRate < 30) {
+                    $priceStatus = number_format($discountRate, 0) . '%値引';
+                } else {
+                    $priceStatus = number_format($discountRate, 0) . '%大幅値引';
+                }
+            }
+            
+            $text .= sprintf(
+                "%d週目: 販売%d個、売価¥%s、回収率%.1f%%、在庫%d個、%s\n",
+                $week['week_number'],
+                $week['weekly_sales_qty'],
+                number_format($week['avg_sales_price']),
+                $week['recovery_rate'],
+                $week['remaining_stock'],
+                $priceStatus
+            );
+        }
+        $text .= "\n";
+        
+        // SKU別パフォーマンス（サイズ・カラー展開）
+        if (!empty($formattedResult['price_breakdown'])) {
+            $text .= "【価格帯別販売実績】\n";
+            foreach ($formattedResult['price_breakdown'] as $price) {
+                $text .= sprintf(
+                    "¥%s: %d個(%.1f%%)、値引率%.0f%%、%s\n",
+                    number_format($price['price']),
+                    $price['quantity'],
+                    $price['ratio'],
+                    $price['discount_rate'],
+                    $price['period']
+                );
+            }
+            $text .= "\n";
+        }
+        
+        // 季節性・トレンド分析用情報
+        $text .= "【季節性・市場環境】\n";
+        $currentMonth = date('n');
+        $seasonInfo = $this->getSeasonInfo($currentMonth, $representative['season_code'] ?? '');
+        $text .= "現在時期: " . $seasonInfo['season'] . "\n";
+        $text .= "商品適正時期: " . $seasonInfo['product_season'] . "\n";
+        $text .= "時期適合度: " . $seasonInfo['match_level'] . "\n";
+        $text .= "\n";
+        
+        // 現在のステータスと推奨アクション
+        $text .= "【現在のステータス】\n";
+        $text .= "推奨判定: " . $recommendation['message'] . "\n";
+        $text .= "処分可能性: " . ($recommendation['disposal_possible'] ? '可能' : '要検討') . "\n";
+        $text .= "推奨アクション: " . $recommendation['action'] . "\n";
+        $text .= "\n";
+        
+        // AI分析要求（アパレル・雑貨特化）
+        $text .= "【AI分析依頼内容】\n";
+        $text .= "以下の観点でアパレル・雑貨商品として分析してください：\n\n";
+        $text .= "1. 【販売トレンド分析】\n";
+        $text .= "   - 立ち上がりから現在までの売れ行き評価\n";
+        $text .= "   - 週別販売数の推移パターン分析\n";
+        $text .= "   - 価格弾力性の評価（値引き効果）\n";
+        $text .= "   - 季節性・時期要因の影響分析\n\n";
+        $text .= "2. 【在庫管理提案】\n";
+        $text .= "   - 現在の在庫消化ペース評価\n";
+        $text .= "   - 残在庫リスクの評価\n";
+        $text .= "   - サイズ・カラー別の売れ筋分析\n";
+        $text .= "   - 在庫処分の緊急度判定\n\n";
+        $text .= "3. 【アクション提案】\n";
+        $text .= "   - 具体的な値下げ戦略（時期・率・期間）\n";
+        $text .= "   - 販促施策の提案\n";
+        $text .= "   - 処分方法の選択肢\n";
+        $text .= "   - 類似商品の仕入れ判断への活用方法\n\n";
+        $text .= "4. 【業界ベストプラクティス】\n";
+        $text .= "   - アパレル・雑貨業界の一般的な処分タイミング\n";
+        $text .= "   - 季節商品の効率的な販売戦略\n";
+        $text .= "   - 同業他社との比較評価\n";
+        $text .= "   - 次回仕入れへの改善提案\n\n";
+        
+        return $text;
+    }
+
+    /**
+     * 季節情報取得
+     */
+    private function getSeasonInfo($currentMonth, $seasonCode): array
+    {
+        $seasonMap = [
+            'SS' => ['name' => '春夏', 'months' => [3,4,5,6,7,8]],
+            'AW' => ['name' => '秋冬', 'months' => [9,10,11,12,1,2]],
+            'SP' => ['name' => '春', 'months' => [3,4,5]],
+            'SU' => ['name' => '夏', 'months' => [6,7,8]],
+            'AU' => ['name' => '秋', 'months' => [9,10,11]],
+            'WI' => ['name' => '冬', 'months' => [12,1,2]]
+        ];
+        
+        $currentSeason = ($currentMonth >= 3 && $currentMonth <= 8) ? '春夏時期' : '秋冬時期';
+        $productSeason = $seasonMap[$seasonCode]['name'] ?? '通年';
+        
+        $isMatch = false;
+        if (isset($seasonMap[$seasonCode])) {
+            $isMatch = in_array($currentMonth, $seasonMap[$seasonCode]['months']);
+        }
+        
+        return [
+            'season' => $currentSeason,
+            'product_season' => $productSeason,
+            'match_level' => $isMatch ? '適正時期' : '時期外'
+        ];
+    }    
 }

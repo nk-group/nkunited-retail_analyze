@@ -10,11 +10,14 @@
         <a href="<?= site_url('sales-analysis') ?>" class="btn btn-outline-secondary">
             <i class="bi bi-house me-2"></i>分析メニュー
         </a>
-        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-            <i class="bi bi-printer me-2"></i>印刷
+        <button type="button" class="btn btn-outline-info" id="generateAiDataBtn">
+            <i class="bi bi-robot me-2"></i>AI分析用データ生成
         </button>
         <button type="button" class="btn btn-outline-info" id="shareUrlBtn">
             <i class="bi bi-share me-2"></i>URL共有
+        </button>
+        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+            <i class="bi bi-printer me-2"></i>印刷
         </button>
     </div>
 
