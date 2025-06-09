@@ -13,6 +13,21 @@
     <?php if (isset($useSalesAnalysisCSS) && $useSalesAnalysisCSS): ?>
         <link href="<?= base_url('assets/css/sales_analysis.css') ?>" rel="stylesheet">
     <?php endif; ?>
+    <!-- 販売分析CSS読み込み（新方式） -->
+    <?php if (isset($useSalesAnalysisCSS) && $useSalesAnalysisCSS): ?>
+        <!-- 共通CSS（必須） -->
+        <link rel="stylesheet" href="<?= base_url('assets/css/sales_analysis_common.css') ?>">
+        
+        <!-- 画面別CSS -->
+        <?php if (isset($salesAnalysisPage)): ?>
+            <link rel="stylesheet" href="<?= base_url('assets/css/sales_analysis_' . esc($salesAnalysisPage) . '.css') ?>">
+        <?php endif; ?>
+    <?php endif; ?>
+
+    <!-- 販売分析CSS読み込み（旧方式 - 段階的廃止予定） -->
+    <?php if (isset($useSalesAnalysisOldCSS) && $useSalesAnalysisOldCSS): ?>
+        <link rel="stylesheet" href="<?= base_url('assets/css/sales_analysis.css') ?>">
+    <?php endif; ?>    
     
     <?= $this->renderSection('styles') ?>
 </head>

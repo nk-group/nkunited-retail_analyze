@@ -1,0 +1,159 @@
+/*
+ * 販売分析システム共通スタイルシート
+ * (public/assets/css/sales_analysis_common.css)
+ * 
+ * 使用ファイル: 全ての販売分析ビュー
+ */
+
+/* ===== 共通カードアイコンスタイル（既存システム統一） ===== */
+
+.sa-card-icon {
+    font-size: 3rem;
+    transition: transform 0.3s ease;
+}
+
+.card:hover .sa-card-icon {
+    transform: scale(1.1);
+}
+
+/* ===== 共通ボタンスタイル ===== */
+
+.sa-btn-execute {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    border: none;
+    border-radius: 6px;
+    color: white;
+    font-weight: 600;
+    padding: 0.75rem 2rem;
+    transition: all 0.3s ease;
+}
+
+.sa-btn-execute:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    color: white;
+}
+
+.sa-btn-execute:disabled {
+    background: #6c757d;
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* ===== 共通情報表示 ===== */
+
+.sa-analysis-info {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.sa-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.sa-info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.sa-info-item:last-child {
+    border-bottom: none;
+}
+
+.sa-info-label {
+    font-weight: 600;
+    color: #495057;
+    flex-shrink: 0;
+}
+
+.sa-info-value {
+    color: #212529;
+    text-align: right;
+    margin-left: 1rem;
+    word-break: break-all;
+}
+
+/* ===== 共通警告・アラート ===== */
+
+.sa-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 6px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sa-warning-icon {
+    color: #856404;
+    margin-right: 0.5rem;
+}
+
+.sa-warning-text {
+    color: #856404;
+    margin-bottom: 0;
+}
+
+/* ===== 共通実行時間表示 ===== */
+
+.sa-execution-stats {
+    background: #e9ecef;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #6c757d;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+/* ===== レスポンシブ対応 ===== */
+
+@media (max-width: 768px) {
+    .sa-info-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .sa-info-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .sa-info-value {
+        text-align: left;
+        margin-left: 0;
+        margin-top: 0.25rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .sa-card-icon {
+        font-size: 2.5rem;
+    }
+    
+    .sa-btn-execute {
+        padding: 0.5rem 1.5rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* ===== 印刷時の調整 ===== */
+
+@media print {
+    .sa-btn-execute {
+        display: none !important;
+    }
+    
+    .sa-analysis-info {
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+}

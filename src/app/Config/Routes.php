@@ -87,6 +87,9 @@ $routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
     // メイン画面（分析メニュー）
     $routes->get('/', 'SalesAnalysisController::index');
     
+    // 集計結果 - 直接URL用（元URLリダイレクト対応）
+    $routes->get('quick-analysis', 'SalesAnalysisController::singleProductResult');
+    
     // 単品分析
     $routes->group('single-product', function($routes) {
         // 集計指示画面

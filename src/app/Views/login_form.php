@@ -41,11 +41,10 @@
 </div>
 <?= $this->endSection() ?>
 
-<?php /* ログインページ固有のスタイルやスクリプトは以下に記述できます */ ?>
 <?= $this->section('styles') ?>
-<?php /* 例: <style>.custom-login-style { ... }</style> */ ?>
+<!-- ログインページ固有のスタイル -->
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-<?php /* 例: <script> console.log('Login page script loaded.'); </script> */ ?>
+<!-- ログインページ固有のスクリプト -->
 <?= $this->endSection() ?>
