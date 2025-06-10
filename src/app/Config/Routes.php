@@ -76,7 +76,11 @@ $routes->group('slips', ['filter' => 'auth'], static function ($routes) {
     $routes->post('import/transfer', 'SlipImportController::processTransferSlipImport', ['as' => 'transfer_slip_import_process']);
     
     // 調整伝票 (Adjustment Slip)
-    $routes->post('import/adjustment', 'SlipImportController::processAdjustmentSlipImport', ['as' => 'adjustment_slip_import_process']);    
+    $routes->post('import/adjustment', 'SlipImportController::processAdjustmentSlipImport', ['as' => 'adjustment_slip_import_process']);
+
+    // 発注伝票 (Order Slip)
+    $routes->post('import/order', 'SlipImportController::processOrderSlipImport', ['as' => 'order_slip_import_process']);
+
 });
 
 

@@ -96,6 +96,19 @@
             'notes' => 'ファイル形式: 指定のExcelまたはCSV形式。1行目ヘッダー、2行目以降データ。',
             'enabled' => true
         ],
+        'order_slip' => [
+            'title' => '発注伝票取込',
+            'icon' => 'bi-clipboard-check', // アイコン例
+            'form_id' => 'orderSlipImportForm',
+            'file_input_id' => 'order_slip_file',
+            'file_input_name' => 'slip_file',
+            'status_div_id' => 'orderSlipStatus',
+            'action_route' => 'order_slip_import_process',
+            'flash_success_key' => 'success_order_slip',
+            'flash_error_key' => 'error_order_slip',
+            'notes' => 'ファイル形式: 指定のExcelまたはCSV形式。1行目ヘッダー、2行目以降データ。',
+            'enabled' => true
+        ],
     ];
     ?>
 

@@ -41,6 +41,12 @@ class SlipImportController extends BaseController
                 'flash_success_key' => 'success_adjustment_slip',
                 'flash_error_key' => 'error_adjustment_slip',
             ],
+            'order_slip' => [
+                'title' => '発注伝票',
+                'file_input_name' => 'slip_file',
+                'flash_success_key' => 'success_order_slip',
+                'flash_error_key' => 'error_order_slip',
+            ],
         ];
 
     }
@@ -88,6 +94,14 @@ class SlipImportController extends BaseController
     public function processAdjustmentSlipImport(): RedirectResponse
     {
         return $this->processSlipImport('adjustment_slip');
+    }
+
+    /**
+     * 発注伝票ファイルのアップロード処理
+     */
+    public function processOrderSlipImport(): RedirectResponse
+    {
+        return $this->processSlipImport('order_slip');
     }
 
     /**

@@ -289,6 +289,51 @@
 
 ---
 
+## 8. order_slip（発注伝票テーブル）
+### テーブル概要
+発注伝票データを格納するテーブル。各商品の発注情報を行単位で管理する。
+### カラム定義
+| 論理名 | 物理名 | データ型 | NULL | デフォルト値 | 備考 |
+|--------|--------|----------|------|-------------|------|
+| 発注番号 | order_number | int | NOT NULL | - | 主キー（複合）|
+| 行番号 | line_number | smallint | NOT NULL | - | 主キー（複合）|
+| 仕入先コード | supplier_code | nvarchar(50) | NOT NULL | - | 発注先仕入先コード |
+| 仕入先名 | supplier_name | nvarchar(150) | NULL | - | 発注先仕入先名称 |
+| 納品方法 | delivery_method | nvarchar(50) | NULL | - | 納品方法（PC、店舗直送等） |
+| 店舗コード | store_code | nvarchar(20) | NOT NULL | - | 発注店舗コード |
+| 店舗名 | store_name | nvarchar(100) | NULL | - | 発注店舗名 |
+| 発注区分 | order_type | nvarchar(50) | NULL | - | 発注区分（手入力、自動等） |
+| 発注日 | order_date | date | NOT NULL | - | 発注実行日 |
+| 倉庫納期日 | warehouse_delivery_date | date | NULL | - | 倉庫への納期日 |
+| 店舗納期日 | store_delivery_date | date | NULL | - | 店舗への納期日 |
+| 客注区分 | customer_order_type | nvarchar(50) | NULL | - | 客注区分（通常、客注等） |
+| EDI区分 | edi_type | nvarchar(50) | NULL | - | EDI連携区分 |
+| 担当者コード | staff_code | nvarchar(20) | NULL | - | 発注担当者コード |
+| 担当者名 | staff_name | nvarchar(100) | NULL | - | 発注担当者名 |
+| JANコード | jan_code | nvarchar(50) | NULL | - | 商品JANコード |
+| SKUコード | sku_code | nvarchar(50) | NULL | - | 商品SKUコード |
+| メーカーコード | manufacturer_code | nvarchar(8) | NULL | - | メーカー識別コード |
+| 部門コード | department_code | nvarchar(50) | NULL | - | 商品部門コード |
+| 品番 | product_number | nvarchar(50) | NULL | - | メーカー品番 |
+| 商品名 | product_name | nvarchar(200) | NULL | - | 商品名称 |
+| メーカーカラーコード | manufacturer_color_code | nvarchar(20) | NULL | - | メーカー色コード |
+| カラーコード | color_code | nvarchar(50) | NULL | - | 標準色コード |
+| カラー名 | color_name | nvarchar(100) | NULL | - | 色名称 |
+| サイズコード | size_code | nvarchar(50) | NULL | - | サイズ識別コード |
+| サイズ名 | size_name | nvarchar(100) | NULL | - | サイズ名称 |
+| 原価 | cost_price | decimal(12,2) | NULL | - | 商品原価（税抜） |
+| 税込原価 | cost_price_tax_included | decimal(12,2) | NULL | - | 商品原価（税込） |
+| 売価 | selling_price | decimal(12,2) | NULL | - | 商品売価（税抜） |
+| 税込売価 | selling_price_tax_included | decimal(12,2) | NULL | - | 商品売価（税込） |
+| 発注数量 | order_quantity | int | NULL | - | 発注数量 |
+| 発注金額 | order_amount | decimal(12,2) | NULL | - | 発注金額（税抜） |
+| 税込発注金額 | order_amount_tax_included | decimal(12,2) | NULL | - | 発注金額（税込） |
+| 更新日時 | updated_at | datetime2(3) | NULL | - | 統合更新日時 |
+### 制約
+- **主キー**: (order_number, line_number)
+
+---
+
 ## テーブル関連図
 
 ```
@@ -302,7 +347,9 @@ manufacturers (メーカーマスタ)
 │   │
 │   ├── transfer_slip (移動伝票) ※jan_codeで関連
 │   │
-│   └── adjustment_slip (調整伝票) ※jan_codeで関連
+│   ├── adjustment_slip (調整伝票) ※jan_codeで関連
+│   │
+│   └── order_slip (発注伝票) ※jan_codeで関連
 │
 └── import_tasks (取込タスク管理) ※処理対象データとして関連
 ```
