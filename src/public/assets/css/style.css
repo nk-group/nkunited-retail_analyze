@@ -117,3 +117,21 @@ body.auth-layout-background {
         padding: 8px;
     }
 }
+
+
+
+
+/* カードホバー時のアイコンアニメーション */
+.card:hover .card-icon {
+    transform: scale(1.1);
+}
+
+/* 無効化されたカードのスタイル */
+.card.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.card.disabled:hover .card-icon {
+    transform: none;
+}

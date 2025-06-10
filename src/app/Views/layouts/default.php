@@ -9,11 +9,7 @@
     <link href="<?= base_url('assets/css/style.css') ?>" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     
-    <!-- 販売分析システム用CSS -->
-    <?php if (isset($useSalesAnalysisCSS) && $useSalesAnalysisCSS): ?>
-        <link href="<?= base_url('assets/css/sales_analysis.css') ?>" rel="stylesheet">
-    <?php endif; ?>
-    <!-- 販売分析CSS読み込み（新方式） -->
+    <!-- 販売分析CSS読み込み -->
     <?php if (isset($useSalesAnalysisCSS) && $useSalesAnalysisCSS): ?>
         <!-- 共通CSS（必須） -->
         <link rel="stylesheet" href="<?= base_url('assets/css/sales_analysis_common.css') ?>">
@@ -24,11 +20,6 @@
         <?php endif; ?>
     <?php endif; ?>
 
-    <!-- 販売分析CSS読み込み（旧方式 - 段階的廃止予定） -->
-    <?php if (isset($useSalesAnalysisOldCSS) && $useSalesAnalysisOldCSS): ?>
-        <link rel="stylesheet" href="<?= base_url('assets/css/sales_analysis.css') ?>">
-    <?php endif; ?>    
-    
     <?= $this->renderSection('styles') ?>
 </head>
 <body class="d-flex flex-column min-vh-100 <?= isset($bodyClass) ? esc($bodyClass) : '' ?>" 

@@ -18,7 +18,8 @@ $session = session(); // セッション情報を取得 ?>
                     <ul class="dropdown-menu" aria-labelledby="navbarDropdownAnalysis">
                         <li><a class="dropdown-item" href="<?= site_url('sales-analysis') ?>">分析メニュー</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="<?= site_url('sales-analysis/single-product') ?>">単品分析</a></li>
+                        <li><a class="dropdown-item" href="<?= site_url('sales-analysis/single-product') ?>">単品販売分析（品番指定）</a></li>
+                        <li><a class="dropdown-item" href="<?= site_url('sales-analysis/code-analysis') ?>">単品販売分析（コード個別指定）</a></li>
                         <li><a class="dropdown-item disabled" href="#">カテゴリ分析 <small class="text-muted">(準備中)</small></a></li>
                         <li><a class="dropdown-item disabled" href="#">期間比較分析 <small class="text-muted">(準備中)</small></a></li>
                     </ul>

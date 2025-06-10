@@ -1,29 +1,21 @@
 <?= $this->extend('layouts/default') ?>
 
 <?= $this->section('content') ?>
-<div class="container sales-analysis">
-    <!-- ヘッダーセクション -->
-    <div class="row">
-        <div class="col-12">
-            <h2 class="mb-4">📊 商品販売分析</h2>
-        </div>
-    </div>
+<div class="container">
+    <h2 class="mb-4">商品販売分析</h2>
     
-    <!-- 分析機能一覧（既存メニューと同じレイアウト） -->
     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
         <!-- 単品販売分析 -->
         <div class="col">
-            <div class="card h-100 shadow-sm">
+            <div class="card h-100 shadow-sm" style="cursor: pointer;" data-bs-toggle="modal" data-bs-target="#singleProductModal">
                 <div class="card-body text-center">
-                    <div class="card-icon text-primary">
-                        <i class="bi bi-graph-up-arrow"></i>
-                    </div>
+                    <div class="card-icon text-primary"><i class="bi bi-graph-up-arrow"></i></div>
                     <h5 class="card-title mt-3">単品販売分析</h5>
                     <p class="card-text">
                         指定した商品の週別販売推移、原価回収率、在庫処分判定を分析します。
                         品出し後の販売状況を詳細に確認できます。
                     </p>
-                    <button class="btn btn-outline-primary stretched-link" data-bs-toggle="modal" data-bs-target="#singleProductModal">
+                    <button type="button" class="btn btn-outline-primary">
                         分析を開始
                     </button>
                 </div>
@@ -32,18 +24,16 @@
         
         <!-- カテゴリ分析 -->
         <div class="col">
-            <div class="card h-100 shadow-sm">
+            <div class="card h-100 shadow-sm disabled" style="opacity: 0.6; cursor: not-allowed;">
                 <div class="card-body text-center">
-                    <div class="card-icon text-success">
-                        <i class="bi bi-bar-chart-line"></i>
-                    </div>
+                    <div class="card-icon text-success"><i class="bi bi-bar-chart-line"></i></div>
                     <h5 class="card-title mt-3">カテゴリ分析</h5>
                     <p class="card-text">
                         部門やカテゴリ別の販売動向を分析します。
                         複数商品の比較分析が可能です。
                     </p>
-                    <button class="btn btn-outline-secondary stretched-link" disabled>
-                        <i class="bi bi-wrench me-2"></i>準備中
+                    <button class="btn btn-outline-secondary" disabled>
+                        準備中
                     </button>
                 </div>
             </div>
@@ -51,18 +41,16 @@
         
         <!-- 期間比較分析 -->
         <div class="col">
-            <div class="card h-100 shadow-sm">
+            <div class="card h-100 shadow-sm disabled" style="opacity: 0.6; cursor: not-allowed;">
                 <div class="card-body text-center">
-                    <div class="card-icon text-warning">
-                        <i class="bi bi-calendar-week"></i>
-                    </div>
+                    <div class="card-icon text-warning"><i class="bi bi-calendar-week"></i></div>
                     <h5 class="card-title mt-3">期間比較分析</h5>
                     <p class="card-text">
                         前年同期や前シーズンとの比較分析を行います。
                         季節性やトレンド分析に活用できます。
                     </p>
-                    <button class="btn btn-outline-secondary stretched-link" disabled>
-                        <i class="bi bi-wrench me-2"></i>準備中
+                    <button class="btn btn-outline-secondary" disabled>
+                        準備中
                     </button>
                 </div>
             </div>
@@ -137,6 +125,18 @@
         </div>
     </div>
 </div>
+
+<script>
+// ボタンクリック時のイベント伝播を停止
+document.addEventListener('DOMContentLoaded', function() {
+    const card = document.querySelector('.card:not(.disabled)');
+    const button = card.querySelector('.btn');
+    
+    button.addEventListener('click', function(e) {
+        e.stopPropagation();
+    });
+});
+</script>
 
 <?php
 // CSS読み込みフラグとbodyクラスを設定

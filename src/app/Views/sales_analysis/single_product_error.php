@@ -159,6 +159,7 @@
 // CSS読み込みフラグとbodyクラスを設定
 $this->setData([
     'useSalesAnalysisCSS' => true,
+    'salesAnalysisPage' => 'error',
     'bodyClass' => 'sales-analysis'
 ]);
 ?>

@@ -5,17 +5,6 @@
  * 使用ファイル: 全ての販売分析ビュー
  */
 
-/* ===== 共通カードアイコンスタイル（既存システム統一） ===== */
-
-.sa-card-icon {
-    font-size: 3rem;
-    transition: transform 0.3s ease;
-}
-
-.card:hover .sa-card-icon {
-    transform: scale(1.1);
-}
-
 /* ===== 共通ボタンスタイル ===== */
 
 .sa-btn-execute {
@@ -156,4 +145,292 @@
         box-shadow: none;
         border: 1px solid #000;
     }
+}
+
+
+
+
+
+
+
+
+/* ===== ヘッダーセクション（全画面共通） ===== */
+
+.header-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 25px 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.header-section .page-title {
+    margin: 0 0 20px 0;
+    font-size: 28px;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 2px solid rgba(255,255,255,0.3);
+    padding-bottom: 15px;
+}
+
+.header-section .page-subtitle {
+    margin: 0;
+    opacity: 0.9;
+    font-size: 16px;
+    text-align: center;
+    line-height: 1.4;
+}
+
+/* メーカー情報 */
+.manufacturer-info {
+    font-size: 14px;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+/* 商品名 */
+.product-name {
+    font-size: 36px;
+    font-weight: 700;
+    color: #ffffff;
+    text-align: center;
+    margin: 8px 0;
+    line-height: 1.2;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+/* 品番・シーズン情報 */
+.product-details {
+    font-size: 18px;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    font-weight: 500;
+}
+
+/* 重要指標エリア */
+.key-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.metric-item {
+    display: flex;
+    align-items: center;
+    font-size: 16px;
+    color: white;
+    background: rgba(255,255,255,0.1);
+    padding: 12px 16px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+}
+
+.metric-icon {
+    font-size: 18px;
+    margin-right: 10px;
+    opacity: 0.9;
+}
+
+.metric-label {
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+.metric-value {
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.metric-value.price {
+    color: #90EE90;
+}
+
+.metric-value.days {
+    color: #FFB347;
+}
+
+.metric-value.date {
+    color: #87CEEB;
+}
+
+/* ===== サマリーカード（結果画面用） ===== */
+
+.summary-section {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background: #f8f9fa;
+    padding: 16px;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.summary-card.clickable {
+    cursor: pointer;
+    border-left-color: #28a745;
+}
+
+.summary-card.clickable:hover {
+    background: #e8f5e9;
+    border-left-color: #1e7e34;
+}
+
+.summary-card h4 {
+    margin: 0 0 12px 0;
+    color: #495057;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.summary-card .value {
+    font-size: 22px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.recovery-rate {
+    color: #28a745;
+}
+
+.recovery-rate.warning {
+    color: #ffc107;
+}
+
+.recovery-rate.danger {
+    color: #dc3545;
+}
+
+/* ===== アクションボタン ===== */
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* ===== 成功メッセージ ===== */
+
+.success-message {
+    color: #28a745;
+    font-size: 14px;
+    margin-top: 8px;
+    font-weight: 500;
+}
+
+.success-message i {
+    margin-right: 5px;
+}
+
+/* ===== URLコピー機能 ===== */
+
+.url-copy-section {
+    margin-top: 20px;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.url-copy-section .card {
+    border: 2px solid #17a2b8;
+    box-shadow: 0 4px 15px rgba(23, 162, 184, 0.1);
+}
+
+.url-copy-section .card-header {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    border-bottom: none;
+}
+
+.url-copy-section .card-header h5 {
+    color: white;
+    margin: 0;
+}
+
+.url-copy-section .input-group {
+    margin-bottom: 10px;
+}
+
+.url-copy-section .form-control {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+}
+
+.url-copy-section .btn {
+    white-space: nowrap;
+}
+
+/* URL共有機能（結果画面用） */
+.url-share-section {
+    margin-top: 20px;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.url-share-section .card {
+    border: 2px solid #28a745;
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.1);
+}
+
+.url-share-section .card-header {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    border-bottom: none;
+}
+
+.url-share-section .card-header h5 {
+    color: white;
+    margin: 0;
+}
+
+.url-share-section .input-group {
+    margin-bottom: 10px;
+}
+
+.url-share-section .form-control {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    background-color: #f8f9fa;
+    border: 1px solid #ced4da;
+}
+
+/* ===== アニメーション効果 ===== */
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-down {
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from { max-height: 0; opacity: 0; }
+    to { max-height: 500px; opacity: 1; }
 }

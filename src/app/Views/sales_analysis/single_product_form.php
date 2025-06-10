@@ -388,11 +388,12 @@
 </div>
 
 <?php
-// CSS読み込みフラグとbodyクラスを設定
 $this->setData([
     'useSalesAnalysisCSS' => true,
+    'salesAnalysisPage' => 'form',
     'bodyClass' => 'sales-analysis'
 ]);
+
 ?>
 
 <?= $this->endSection() ?>
