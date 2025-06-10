@@ -419,6 +419,11 @@ class SalesAnalysisController extends BaseController
             $badges[] = "🚚 移動";
         }
         
+        // 発注イベント
+        if (!empty($week['order_events'])) {
+            $badges[] = "📠 発注";
+        }
+        
         return $badges;
     }
     
@@ -431,10 +436,12 @@ class SalesAnalysisController extends BaseController
             'purchase_slips' => $this->formatPurchaseSlips($slipDetails['purchase_slips']),
             'adjustment_slips' => $this->formatAdjustmentSlips($slipDetails['adjustment_slips']),
             'transfer_slips' => $this->formatTransferSlips($slipDetails['transfer_slips']),
+            'order_slips' => $this->formatOrderSlips($slipDetails['order_slips'] ?? []),
             'summary' => [
                 'purchase_count' => count($slipDetails['purchase_slips']),
                 'adjustment_count' => count($slipDetails['adjustment_slips']),
-                'transfer_count' => count($slipDetails['transfer_slips'])
+                'transfer_count' => count($slipDetails['transfer_slips']),
+                'order_count' => count($slipDetails['order_slips'] ?? [])
             ]
         ];
     }
@@ -449,6 +456,7 @@ class SalesAnalysisController extends BaseController
             $formatted[] = [
                 'date' => $slip['purchase_date'],
                 'slip_number' => $slip['slip_number'],
+                'order_number' => $slip['order_number'] ?? null,
                 'store' => $slip['store_name'] ?: '本部DC',
                 'supplier' => $slip['supplier_name'] ?: '-',
                 'quantity' => $slip['total_quantity'],
@@ -497,6 +505,29 @@ class SalesAnalysisController extends BaseController
                 'quantity' => $slip['total_quantity'],
                 'remarks' => $this->getTransferRemarks($slip),
                 'is_initial_delivery' => $slip['is_initial_delivery']
+            ];
+        }
+        return $formatted;
+    }
+    
+    /**
+     * 発注伝票の整形
+     */
+    private function formatOrderSlips(array $orderSlips): array
+    {
+        $formatted = [];
+        foreach ($orderSlips as $slip) {
+            $formatted[] = [
+                'date' => $slip['order_date'],
+                'order_number' => $slip['order_number'],
+                'store' => $slip['store_name'] ?: '-',
+                'supplier' => $slip['supplier_name'] ?: '-',
+                'delivery_method' => $slip['delivery_method'] ?: '-',
+                'quantity' => $slip['total_quantity'],
+                'unit_price' => $slip['avg_cost_price'],
+                'amount' => $slip['total_amount'],
+                'warehouse_delivery' => $slip['warehouse_delivery_date'] ?: '-',
+                'store_delivery' => $slip['store_delivery_date'] ?: '-'
             ];
         }
         return $formatted;

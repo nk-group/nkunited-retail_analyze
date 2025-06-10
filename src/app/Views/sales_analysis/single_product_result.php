@@ -190,7 +190,6 @@
             </div>
             <div class="modal-body">
                 <div class="product-group-info">
-                    <h4><?= esc($formatted_result['header_info']['product_name']) ?></h4>
                     <p>対象JANコード数: <?= $formatted_result['summary_info']['target_products_count'] ?>個</p>
                 </div>
                 
@@ -220,15 +219,18 @@
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
-                
+
                 <table class="products-table">
                     <thead>
                         <tr>
                             <th>JANコード</th>
-                            <th>メーカー</th>
+                            <th>SKU</th>
                             <th>品番</th>
+                            <th>品名</th>
                             <th>サイズ</th>
                             <th>カラー</th>
+                            <th>原価</th>
+                            <th>M単価</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -236,19 +238,23 @@
                             <?php foreach ($analysis_result['basic_info']['products'] as $product): ?>
                                 <tr>
                                     <td style="font-family: monospace;"><?= esc($product['jan_code']) ?></td>
-                                    <td><?= esc($product['manufacturer_name']) ?></td>
+                                    <td><?= esc($product['sku_code'] ?? '-') ?></td>
                                     <td><?= esc($product['product_number']) ?></td>
+                                    <td><?= esc($product['product_name']) ?></td>
                                     <td><?= esc($product['size_name'] ?? 'F') ?></td>
                                     <td><?= esc($product['color_name'] ?? '-') ?></td>
+                                    <td>¥<?= number_format($product['effective_cost_price'] ?? 0) ?></td>
+                                    <td>¥<?= number_format($product['m_unit_price'] ?? 0) ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="5" class="text-center text-muted">商品データがありません</td>
+                                <td colspan="8" class="text-center text-muted">商品データがありません</td>
                             </tr>
                         <?php endif; ?>
                     </tbody>
                 </table>
+
             </div>
             <div class="modal-footer">
                 <p class="info-text">
@@ -322,6 +328,10 @@
                                     <?php if (!empty($week['transfer_events'])): ?>
                                         <span class="event-badge badge-transfer">🚚 移動</span>
                                     <?php endif; ?>
+
+                                    <?php if (!empty($week['order_events'])): ?>
+                                        <span class="event-badge badge-order">📠 発注</span>
+                                    <?php endif; ?>                                    
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -379,6 +389,7 @@
                     📦 仕入<?= $formatted_result['slip_details']['summary']['purchase_count'] ?>件 
                     ⚖️ 調整<?= $formatted_result['slip_details']['summary']['adjustment_count'] ?>件 
                     🚚 移動<?= $formatted_result['slip_details']['summary']['transfer_count'] ?>件
+                    📠 発注<?= $formatted_result['slip_details']['summary']['order_count'] ?>件
                 </small>
                 <i class="bi bi-chevron-down"></i>
             </button>
@@ -402,6 +413,11 @@
                             🚚 移動伝票 (<?= $formatted_result['slip_details']['summary']['transfer_count'] ?>件)
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#orderSlips">
+                            📠 発注伝票 (<?= $formatted_result['slip_details']['summary']['order_count'] ?>件)
+                        </a>
+                    </li>                    
                 </ul>
                 
                 <div class="tab-content">
@@ -413,6 +429,7 @@
                                     <tr>
                                         <th>日付</th>
                                         <th>伝票番号</th>
+                                        <th>発注番号</th>
                                         <th>店舗</th>
                                         <th>仕入先</th>
                                         <th>数量</th>
@@ -427,6 +444,7 @@
                                             <tr>
                                                 <td><?= esc($slip['date']) ?></td>
                                                 <td><?= esc($slip['slip_number']) ?></td>
+                                                <td><?= $slip['order_number'] ? esc($slip['order_number']) : '-' ?></td>
                                                 <td><?= esc($slip['store']) ?></td>
                                                 <td><?= esc($slip['supplier']) ?></td>
                                                 <td class="<?= $slip['quantity'] > 0 ? 'text-success' : 'text-danger' ?>">
@@ -524,7 +542,52 @@
                             </table>
                         </div>
                     </div>
+
+                    <!-- 発注伝票 -->
+                    <div class="tab-pane fade" id="orderSlips">
+                        <div style="overflow-x: auto;">
+                            <table class="table table-sm slip-table">
+                                <thead>
+                                    <tr>
+                                        <th>発注日</th>
+                                        <th>発注番号</th>
+                                        <th>店舗</th>
+                                        <th>仕入先</th>
+                                        <th>納品方法</th>
+                                        <th>数量</th>
+                                        <th>単価</th>
+                                        <th>金額</th>
+                                        <th>倉庫納期</th>
+                                        <th>店舗納期</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (!empty($formatted_result['slip_details']['order_slips'])): ?>
+                                        <?php foreach ($formatted_result['slip_details']['order_slips'] as $slip): ?>
+                                            <tr>
+                                                <td><?= esc($slip['date']) ?></td>
+                                                <td><?= esc($slip['order_number']) ?></td>
+                                                <td><?= esc($slip['store']) ?></td>
+                                                <td><?= esc($slip['supplier']) ?></td>
+                                                <td><?= esc($slip['delivery_method']) ?></td>
+                                                <td><?= number_format($slip['quantity']) ?></td>
+                                                <td>¥<?= number_format($slip['unit_price']) ?></td>
+                                                <td>¥<?= number_format($slip['amount']) ?></td>
+                                                <td><?= esc($slip['warehouse_delivery']) ?></td>
+                                                <td><?= esc($slip['store_delivery']) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="10" class="text-center text-muted">発注データがありません</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
+
             </div>
         </div>
     </div>

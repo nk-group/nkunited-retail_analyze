@@ -497,7 +497,11 @@ class SingleProductAnalysisService
                 'remaining_stock' => (int)$remainingStock,
                 'purchase_events' => $weekEvents['purchase'] ?? [],
                 'adjustment_events' => $weekEvents['adjustment'] ?? [],
-                'transfer_events' => $weekEvents['transfer'] ?? []
+                'transfer_events' => $weekEvents['transfer'] ?? [],
+                'purchase_events' => $weekEvents['purchase'] ?? [],
+                'adjustment_events' => $weekEvents['adjustment'] ?? [],
+                'transfer_events' => $weekEvents['transfer'] ?? [],
+                'order_events' => $weekEvents['order'] ?? []
             ];
         }
         
@@ -537,12 +541,14 @@ class SingleProductAnalysisService
         $purchaseEvents = $this->getWeeklyPurchaseEvents($janCodes, $baseDate, $totalWeeks);
         $adjustmentEvents = $this->getWeeklyAdjustmentEvents($janCodes, $baseDate, $totalWeeks);
         $transferEvents = $this->getWeeklyTransferEvents($janCodes, $baseDate, $totalWeeks);
+        $orderEvents = $this->getWeeklyOrderEvents($janCodes, $baseDate, $totalWeeks);
         
         for ($week = 1; $week <= $totalWeeks; $week++) {
             $events[$week] = [
                 'purchase' => $purchaseEvents[$week] ?? [],
                 'adjustment' => $adjustmentEvents[$week] ?? [],
-                'transfer' => $transferEvents[$week] ?? []
+                'transfer' => $transferEvents[$week] ?? [],
+                'order' => $orderEvents[$week] ?? []
             ];
         }
         
@@ -624,6 +630,31 @@ class SingleProductAnalysisService
         
         return $this->mapEventsToWeeks($results, $baseDate, $totalWeeks, 'transfer_date');
     }
+
+    /**
+     * 週別発注イベント取得
+     */
+    protected function getWeeklyOrderEvents(array $janCodes, string $baseDate, int $totalWeeks): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            order_date,
+            SUM(order_quantity) as total_quantity,
+            COUNT(DISTINCT order_number) as order_count
+        FROM order_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+          AND order_date >= ?
+        GROUP BY order_date
+        ORDER BY order_date
+        ";
+        
+        $params = array_merge($janCodes, [$baseDate]);
+        $results = $this->db->query($sql, $params)->getResultArray();
+        
+        return $this->mapEventsToWeeks($results, $baseDate, $totalWeeks, 'order_date');
+    }    
     
     /**
      * イベントを週別にマッピング
@@ -854,7 +885,8 @@ class SingleProductAnalysisService
         return [
             'purchase_slips' => $this->getPurchaseSlipDetails($janCodes),
             'adjustment_slips' => $this->getAdjustmentSlipDetails($janCodes),
-            'transfer_slips' => $this->getTransferSlipDetails($janCodes)
+            'transfer_slips' => $this->getTransferSlipDetails($janCodes),
+            'order_slips' => $this->getOrderSlipDetails($janCodes)
         ];
     }
     
@@ -869,6 +901,7 @@ class SingleProductAnalysisService
         SELECT 
             purchase_date,
             slip_number,
+            order_number,
             store_name,
             supplier_name,
             SUM(purchase_quantity) as total_quantity,
@@ -877,10 +910,10 @@ class SingleProductAnalysisService
             MAX(CASE WHEN purchase_quantity > 0 THEN '仕入' ELSE '返品' END) as slip_type
         FROM purchase_slip
         WHERE jan_code IN ({$janCodesPlaceholder})
-        GROUP BY purchase_date, input_number, slip_number, store_name, supplier_name
+        GROUP BY purchase_date, input_number, slip_number, order_number, store_name, supplier_name
         ORDER BY purchase_date, input_number, slip_number
         ";
-        
+                
         $results = $this->db->query($sql, $janCodes)->getResultArray();
         
         foreach ($results as &$row) {
@@ -960,6 +993,43 @@ class SingleProductAnalysisService
                 && $row['source_store_code'] === '0900' 
                 && $row['destination_store_code'] >= '0010' 
                 && $row['destination_store_code'] <= '0500');
+        }
+        
+        return $results;
+    }
+
+    /**
+     * 発注伝票詳細取得
+     */
+    protected function getOrderSlipDetails(array $janCodes): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            order_date,
+            order_number,
+            store_name,
+            supplier_name,
+            delivery_method,
+            SUM(order_quantity) as total_quantity,
+            AVG(cost_price) as avg_cost_price,
+            SUM(order_amount) as total_amount,
+            MAX(warehouse_delivery_date) as warehouse_delivery_date,
+            MAX(store_delivery_date) as store_delivery_date
+        FROM order_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+        GROUP BY order_date, order_number, store_name, supplier_name, delivery_method
+        ORDER BY order_date DESC, order_number DESC
+        ";
+        
+        $results = $this->db->query($sql, $janCodes)->getResultArray();
+        
+        foreach ($results as &$row) {
+            $row['total_quantity'] = (int)$row['total_quantity'];
+            $row['avg_cost_price'] = (float)$row['avg_cost_price'];
+            $row['total_amount'] = (float)$row['total_amount'];
+            $row['order_number'] = (int)$row['order_number'];
         }
         
         return $results;
