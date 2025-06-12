@@ -411,10 +411,14 @@
     background: #f8f9fa;
     border-radius: 8px;
     border: 2px solid #dee2e6;
+    align-items: center;
 }
 
 .code-type-selection .form-check {
     margin-bottom: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .code-type-selection .form-check-label {
@@ -435,11 +439,22 @@
 .product-input-header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     margin-bottom: 20px;
     padding: 12px 16px;
     background: #e9ecef;
     border-radius: 8px;
     border-left: 4px solid #007bff;
+    gap: 20px;
+}
+
+.product-input-header .form-label {
+    margin-bottom: 0;
+    flex-grow: 1;
+}
+
+.product-input-header .btn {
+    flex-shrink: 0;
 }
 
 .current-code-type {

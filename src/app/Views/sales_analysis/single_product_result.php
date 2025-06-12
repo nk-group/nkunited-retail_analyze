@@ -664,5 +664,5 @@ $this->setData([
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-<script src="<?= base_url('assets/js/single_product_result.js') ?>"></script>
+<script src="<?= base_url('assets/js/single_product_result.js?v=' . ($jsVersion ?? '1.1.0')) ?>"></script>
 <?= $this->endSection() ?>

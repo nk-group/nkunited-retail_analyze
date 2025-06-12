@@ -392,5 +392,5 @@ $this->setData([
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-<script src="<?= base_url('assets/js/single_product_form.js') ?>"></script>
+<script src="<?= base_url('assets/js/single_product_form.js?v=' . ($jsVersion ?? '1.1.0')) ?>"></script>
 <?= $this->endSection() ?>

@@ -1069,7 +1069,7 @@ class SalesAnalysisController extends BaseController
 
         $keyword = $this->request->getGet('keyword');
         $page = (int) ($this->request->getGet('page') ?? 1);
-        $limit = 20;
+        $limit = 50; // 20から50に変更
         
         try {
             // 空のキーワードでも検索を許可（初期表示用）
@@ -1127,7 +1127,7 @@ class SalesAnalysisController extends BaseController
                 
                 // SKUコードがNULLでない場合のみ検索条件に含める
                 $builder->orWhere('p.sku_code IS NOT NULL')
-                       ->like('p.sku_code', $keyword);
+                    ->like('p.sku_code', $keyword);
                 
                 $builder->groupEnd();
             }
@@ -1150,6 +1150,7 @@ class SalesAnalysisController extends BaseController
             }
             
             $products = $builder
+                ->orderBy('p.sku_code', 'DESC')  // SKUコード降順を追加（最優先）
                 ->orderBy('p.manufacturer_code')
                 ->orderBy('p.product_number')
                 ->orderBy('p.jan_code')
@@ -1171,7 +1172,7 @@ class SalesAnalysisController extends BaseController
                     : $product['cost_price'];
             }
 
-            $totalPages = $totalCount > 0 ? ceil($totalCount / $limit) : 0;
+            $totalPages = $totalCount > 0 ? ceil($totalCount / $limit) : 1;
             $hasNextPage = $page < $totalPages;
             $hasPrevPage = $page > 1;
 
@@ -1188,26 +1189,14 @@ class SalesAnalysisController extends BaseController
                     'from' => $totalCount > 0 ? ($page - 1) * $limit + 1 : 0,
                     'to' => min($page * $limit, $totalCount)
                 ],
-                'keyword' => $keyword ?? ''
+                'keyword' => $keyword
             ]);
+
         } catch (\Exception $e) {
             log_message('error', '全商品検索エラー: ' . $e->getMessage());
-            
             return $this->response->setStatusCode(500)->setJSON([
                 'success' => false,
-                'error' => '検索処理中にエラーが発生しました: ' . $e->getMessage(),
-                'data' => [],
-                'pagination' => [
-                    'current_page' => 1,
-                    'total_count' => 0,
-                    'per_page' => $limit,
-                    'total_pages' => 0,
-                    'has_next_page' => false,
-                    'has_prev_page' => false,
-                    'from' => 0,
-                    'to' => 0
-                ],
-                'keyword' => $keyword ?? ''
+                'error' => '検索処理中にエラーが発生しました: ' . $e->getMessage()
             ]);
         }
     }

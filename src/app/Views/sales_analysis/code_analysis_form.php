@@ -247,31 +247,33 @@
             </div>
             <div class="modal-body">
                 <!-- 検索フォーム -->
-                <div class="product-search-form">
+                <div class="search-form-section">
                     <div class="row g-3">
                         <div class="col-md-8">
-                            <label for="product_search_modal_keyword" class="form-label">検索キーワード</label>
+                            <label for="product_search_modal_keyword" class="form-label">
+                                <i class="bi bi-search me-2"></i>商品・メーカー・コード検索
+                            </label>
                             <input type="text" 
                                    class="form-control" 
                                    id="product_search_modal_keyword" 
-                                   placeholder="商品名、メーカー名、品番、JANコード、SKUコードを入力">
+                                   placeholder="商品名、メーカー名、品番、JANコード、SKUコードで検索">
                         </div>
                         <div class="col-md-4 d-flex align-items-end">
                             <button type="button" class="btn btn-primary w-100" id="btn_product_search_modal">
-                                <i class="bi bi-search me-2"></i>検索
+                                <i class="bi bi-search me-2"></i>検索実行
                             </button>
                         </div>
                     </div>
                 </div>
 
                 <!-- 検索結果情報 -->
-                <div id="product_search_modal_results_info" class="search-results-info" style="display: none;">
+                <div id="product_search_modal_results_info" class="search-results-info mt-3" style="display: none;">
                     <i class="bi bi-info-circle me-2"></i>
                     <span id="product_search_modal_results_count_text">-</span>
                 </div>
 
                 <!-- 検索結果テーブル -->
-                <div class="product-search-table-container">
+                <div class="product-search-table-container mt-3">
                     <table class="table table-hover product-search-table">
                         <thead class="table-light">
                             <tr>
@@ -282,11 +284,11 @@
                                 <th width="8%">カラー</th>
                                 <th width="8%">サイズ</th>
                                 <th width="10%">売価</th>
-                                <th width="10%">M単価</th>
+                                <th width="7%">M単価</th>
                             </tr>
                         </thead>
                         <tbody id="product_search_modal_results">
-                            <!-- Ajax で結果を表示 -->
+                            <!-- JavaScript で動的に生成される検索結果 -->
                         </tbody>
                     </table>
                 </div>
@@ -317,11 +319,11 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="bi bi-x-circle me-2"></i>キャンセル
+                <button type="button" class="btn btn-primary" id="btn_add_product_modal" disabled>
+                    <i class="bi bi-plus-circle me-2"></i>追加
                 </button>
-                <button type="button" class="btn btn-primary" id="btn_select_product_modal" disabled>
-                    <i class="bi bi-check-circle me-2"></i>選択
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-2"></i>閉じる
                 </button>
             </div>
         </div>
@@ -340,5 +342,5 @@ $this->setData([
 <?= $this->endSection() ?>
 
 <?= $this->section('scripts') ?>
-<script src="<?= base_url('assets/js/code_analysis_form.js') ?>"></script>
+<script src="<?= base_url('assets/js/code_analysis_form.js?v=' . ($jsVersion ?? '1.1.0')) ?>"></script>
 <?= $this->endSection() ?>
