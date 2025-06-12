@@ -48,12 +48,15 @@
                 <label class="form-label fw-bold">メーカーコード</label>
                 <div class="form-row">
                     <input type="text" 
-                           class="form-control" 
-                           id="manufacturerCode" 
-                           name="manufacturer_code"
-                           value="<?= old('manufacturer_code') ?>"
-                           placeholder="例: 0001" 
-                           required>
+                        class="form-control" 
+                        id="manufacturerCode" 
+                        name="manufacturer_code"
+                        value="<?= old('manufacturer_code') ?>"
+                        placeholder="例: 0001" 
+                        maxlength="7"
+                        pattern="[0-9]*"
+                        inputmode="numeric"
+                        required>
                     <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#makerReferenceModal">
                         <i class="bi bi-search me-2"></i>参照
                     </button>
@@ -202,30 +205,20 @@
                     </div>
                 </div>
 
-                <!-- 選択されたメーカー情報表示 -->
-                <div id="selected_maker_info" class="selected-maker-info" style="display: none;">
-                    <div class="info-header">
-                        <i class="bi bi-check-circle-fill me-2"></i>選択中のメーカー
-                    </div>
-                    <div class="info-content">
-                        <strong>コード:</strong> <span id="selected_code">-</span><br>
-                        <strong>名称:</strong> <span id="selected_name">-</span>
-                    </div>
-                </div>
-
                 <!-- 検索結果情報 -->
                 <div id="search_results_info" class="search-results-info" style="display: none;">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <span id="results_count_text">-</span>
+                    <small class="text-muted">
+                        <span id="results_count_text"></span>
+                    </small>
                 </div>
 
-                <!-- 検索結果テーブル -->
-                <div class="maker-reference-table-container">
-                    <table class="table table-hover maker-reference-table">
-                        <thead class="table-light">
+                <!-- 検索結果 -->
+                <div class="modal-results-container">
+                    <table class="table table-hover">
+                        <thead>
                             <tr>
-                                <th width="30%">メーカーコード</th>
-                                <th width="70%">メーカー名</th>
+                                <th style="width: 120px;">コード</th>
+                                <th>メーカー名</th>
                             </tr>
                         </thead>
                         <tbody id="maker_search_results">

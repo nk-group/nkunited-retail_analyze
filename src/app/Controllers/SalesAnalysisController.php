@@ -26,6 +26,19 @@ class SalesAnalysisController extends BaseController
     }
 
     /**
+     * セッションチェック（API共通）
+     */
+    private function checkSession()
+    {
+        if (!session()->get('isLoggedIn')) {
+            return $this->response->setStatusCode(401)->setJSON([
+                'error' => 'セッションが切れています'
+            ]);
+        }
+        return null;
+    }
+
+    /**
      * 販売分析メニュー画面
      */
     public function index()
@@ -87,8 +100,6 @@ class SalesAnalysisController extends BaseController
             $productNumber = $this->request->getPost('product_number');
             $productName = $this->request->getPost('product_name');
             
-            log_message('info', "フォーム経由分析実行: {$manufacturerCode} - {$productNumber} - {$productName}");
-            
             // 指定条件からJANコード一覧を取得
             $janCodes = $this->productModel->getJanCodesByGroup(
                 $manufacturerCode,
@@ -103,8 +114,6 @@ class SalesAnalysisController extends BaseController
             }
             
             $janCodeList = array_column($janCodes, 'jan_code');
-            
-            log_message('info', 'フォーム経由→JANコード取得完了: ' . count($janCodeList) . '個');
             
             // single-product/resultにリダイレクト（原価計算方式も引き継ぎ）
             $costMethod = $this->request->getPost('cost_method') ?? 'average';
@@ -139,8 +148,6 @@ class SalesAnalysisController extends BaseController
                 } elseif (is_array($janCodes)) {
                     $targetJanCodes = array_filter($janCodes);
                 }
-                
-                log_message('info', 'クイック分析 JANコード指定: ' . json_encode($targetJanCodes));
             }
             // SKUコード指定の場合
             elseif (!empty($skuCodes)) {
@@ -149,8 +156,6 @@ class SalesAnalysisController extends BaseController
                 } elseif (is_array($skuCodes)) {
                     $skuCodeList = array_filter($skuCodes);
                 }
-                
-                log_message('info', 'クイック分析 SKUコード指定: ' . json_encode($skuCodeList));
                 
                 // SKUからJANコードに変換
                 $targetJanCodes = $this->productModel->getJanCodesBySku($skuCodeList);
@@ -162,8 +167,6 @@ class SalesAnalysisController extends BaseController
                         ['invalid_sku_codes' => $skuCodeList]
                     );
                 }
-                
-                log_message('info', 'SKU→JAN変換完了: ' . count($targetJanCodes) . '個');
             }
             else {
                 return $this->showQuickAnalysisError(
@@ -185,14 +188,10 @@ class SalesAnalysisController extends BaseController
             $costMethod = $this->request->getGet('cost_method') ?? 'average';
             $this->analysisService->setCostMethod($costMethod);
             
-            log_message('info', 'クイック分析実行開始: JANコード' . count($targetJanCodes) . '個');
-            
             $analysisResult = $this->analysisService->executeAnalysisByJanCodes($targetJanCodes);
             
             // 結果データの整形
             $formattedResult = $this->formatAnalysisResultForJanBase($analysisResult);
-            
-            log_message('info', 'クイック分析実行完了: 実行時間=' . $analysisResult['execution_time'] . '秒');
             
             $data = [
                 'pageTitle' => '商品販売分析 - クイック分析結果',
@@ -679,6 +678,11 @@ class SalesAnalysisController extends BaseController
      */
     public function searchMakers()
     {
+        // セッションチェック
+        if ($sessionError = $this->checkSession()) {
+            return $sessionError;
+        }
+
         if (!$this->request->isAJAX()) {
             return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
         }
@@ -688,8 +692,20 @@ class SalesAnalysisController extends BaseController
         $exact = $this->request->getGet('exact');
         $limit = 10;
         
+        // 除外範囲パラメータ
+        $excludeRangeStart = $this->request->getGet('exclude_range_start');
+        $excludeRangeEnd = $this->request->getGet('exclude_range_end');
+        
         try {
             $builder = $this->manufacturerModel;
+            
+            // 除外範囲の適用（0100000-0199999を除外）
+            if ($excludeRangeStart && $excludeRangeEnd) {
+                $builder = $builder->groupStart()
+                        ->where('manufacturer_code <', $excludeRangeStart)
+                        ->orWhere('manufacturer_code >', $excludeRangeEnd)
+                        ->groupEnd();
+            }
             
             if (!empty($keyword)) {
                 if ($exact) {
@@ -743,6 +759,11 @@ class SalesAnalysisController extends BaseController
      */
     public function searchProducts()
     {
+        // セッションチェック
+        if ($sessionError = $this->checkSession()) {
+            return $sessionError;
+        }
+
         if (!$this->request->isAJAX()) {
             return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
         }
@@ -821,6 +842,11 @@ class SalesAnalysisController extends BaseController
      */
     public function getTargetProducts()
     {
+        // セッションチェック
+        if ($sessionError = $this->checkSession()) {
+            return $sessionError;
+        }
+
         if (!$this->request->isAJAX()) {
             return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
         }
@@ -909,6 +935,11 @@ class SalesAnalysisController extends BaseController
      */
     public function validateProductNumber()
     {
+        // セッションチェック
+        if ($sessionError = $this->checkSession()) {
+            return $sessionError;
+        }
+
         if (!$this->request->isAJAX()) {
             return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
         }
@@ -987,8 +1018,6 @@ class SalesAnalysisController extends BaseController
             $codeType = $this->request->getPost('code_type');
             $productCodesJson = $this->request->getPost('product_codes');
             
-            log_message('info', "コード分析実行: コード種類={$codeType}");
-            
             // JSON形式の商品コードリストをデコード
             $productCodes = json_decode($productCodesJson, true);
             if (!is_array($productCodes) || empty($productCodes)) {
@@ -1004,8 +1033,6 @@ class SalesAnalysisController extends BaseController
                     ->withInput()
                     ->with('error', '有効な商品コードが指定されていません。');
             }
-            
-            log_message('info', 'コード分析→対象コード数: ' . count($validCodes));
             
             // single-product/resultにリダイレクト
             $costMethod = $this->request->getPost('cost_method') ?? 'average';
@@ -1031,11 +1058,12 @@ class SalesAnalysisController extends BaseController
      */
     public function searchAllProducts()
     {
-        // ログでメソッド呼び出しを確認
-        log_message('info', 'searchAllProducts called - Start');
+        // セッションチェック
+        if ($sessionError = $this->checkSession()) {
+            return $sessionError;
+        }
         
         if (!$this->request->isAJAX()) {
-            log_message('error', 'searchAllProducts: Not AJAX request');
             return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
         }
 
@@ -1043,12 +1071,9 @@ class SalesAnalysisController extends BaseController
         $page = (int) ($this->request->getGet('page') ?? 1);
         $limit = 20;
         
-        log_message('info', "searchAllProducts: keyword={$keyword}, page={$page}");
-        
         try {
             // 空のキーワードでも検索を許可（初期表示用）
             if (!empty($keyword) && strlen($keyword) < 2) {
-                log_message('info', 'searchAllProducts: keyword too short');
                 return $this->response->setJSON([
                     'success' => false,
                     'error' => '検索キーワードは2文字以上で入力してください。',
@@ -1131,8 +1156,6 @@ class SalesAnalysisController extends BaseController
                 ->limit($limit, ($page - 1) * $limit)
                 ->get()->getResultArray();
 
-            log_message('info', "searchAllProducts: found {$totalCount} total, returning " . count($products) . " products");
-
             // データ整形
             foreach ($products as &$product) {
                 $product['selling_price'] = (float)($product['selling_price'] ?? 0);
@@ -1152,7 +1175,7 @@ class SalesAnalysisController extends BaseController
             $hasNextPage = $page < $totalPages;
             $hasPrevPage = $page > 1;
 
-            $response = [
+            return $this->response->setJSON([
                 'success' => true,
                 'data' => $products,
                 'pagination' => [
@@ -1166,14 +1189,9 @@ class SalesAnalysisController extends BaseController
                     'to' => min($page * $limit, $totalCount)
                 ],
                 'keyword' => $keyword ?? ''
-            ];
-            
-            log_message('info', 'searchAllProducts: success response prepared');
-            return $this->response->setJSON($response);
-
+            ]);
         } catch (\Exception $e) {
             log_message('error', '全商品検索エラー: ' . $e->getMessage());
-            log_message('error', 'Stack trace: ' . $e->getTraceAsString());
             
             return $this->response->setStatusCode(500)->setJSON([
                 'success' => false,
@@ -1199,6 +1217,11 @@ class SalesAnalysisController extends BaseController
      */
     public function validateProductCode()
     {
+        // セッションチェック
+        if ($sessionError = $this->checkSession()) {
+            return $sessionError;
+        }
+
         if (!$this->request->isAJAX()) {
             return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
         }
@@ -1388,6 +1411,11 @@ class SalesAnalysisController extends BaseController
      */
     public function generateAiDataAjax()
     {
+        // セッションチェック
+        if ($sessionError = $this->checkSession()) {
+            return $sessionError;
+        }
+
         if (!$this->request->isAJAX()) {
             return $this->response->setStatusCode(400)->setJSON(['error' => '不正なリクエスト']);
         }
@@ -1403,8 +1431,6 @@ class SalesAnalysisController extends BaseController
                 ]);
             }
             
-            log_message('info', 'AI分析データ生成開始: JANコード' . count($janCodes) . '個');
-            
             // 原価計算方式の設定
             $costMethod = $requestData['cost_method'] ?? 'average';
             $this->analysisService->setCostMethod($costMethod);
@@ -1415,8 +1441,6 @@ class SalesAnalysisController extends BaseController
             
             // AI用テキスト生成
             $aiText = $this->generateAiAnalysisText($analysisResult, $formattedResult);
-            
-            log_message('info', 'AI分析データ生成完了: 文字数=' . strlen($aiText));
             
             return $this->response->setJSON([
                 'success' => true,

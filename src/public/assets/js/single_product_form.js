@@ -26,11 +26,49 @@ class SingleProductForm {
     }
     
     /**
+     * 認証付きfetchラッパー
+     * セッション切れを統一的に処理
+     */
+    async fetchWithAuth(url, options = {}) {
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+            
+            // セッション切れの処理
+            if (response.status === 401) {
+                if (confirm('セッションが切れています。ログイン画面に移動しますか？')) {
+                    // 現在の状態を保存してからログイン画面へ
+                    this.saveFormState();
+                    window.location.href = `${this.siteUrl}/login`;
+                }
+                throw new Error('セッションが切れています');
+            }
+            
+            // その他のHTTPエラー
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return response;
+        } catch (error) {
+            // ネットワークエラー等
+            if (error.message === 'Failed to fetch') {
+                throw new Error('ネットワークエラーが発生しました。接続を確認してください。');
+            }
+            throw error;
+        }
+    }
+    
+    /**
      * 初期化
      */
     init() {
-        console.log('=== 商品販売分析 単品分析フォーム初期化 ===');
-        
         if (!this.initializeUrls()) {
             return;
         }
@@ -43,7 +81,14 @@ class SingleProductForm {
         this.initializeMakerModal();
         this.initializeProductModal();
         
-        console.log('=== 商品販売分析フォーム初期化完了 ===');
+        // ブラウザの戻るボタンで戻ってきた場合のみ復元
+        if (window.performance && window.performance.navigation.type === 2) {
+            // ブラウザの戻る/進むで来た場合
+            this.restoreFormState();
+        } else {
+            // 通常のアクセスの場合はクリア
+            this.clearFormState();
+        }
     }
     
     /**
@@ -63,12 +108,6 @@ class SingleProductForm {
             });
             return false;
         }
-        
-        console.log('URL設定完了:', {
-            baseUrl: this.baseUrl,
-            siteUrl: this.siteUrl,
-            apiBase: this.apiBase
-        });
         
         return true;
     }
@@ -93,23 +132,235 @@ class SingleProductForm {
         
         return true;
     }
+
+    /**
+     * フォーム状態をsessionStorageに保存
+     */
+    saveFormState() {
+        // 選択された商品情報も含めて保存
+        const selectedProductData = this.selectedProduct ? {
+            product_name: this.selectedProduct.product_name,
+            product_number: this.selectedProduct.product_number,
+            season_code: this.selectedProduct.season_code,
+            selling_price: this.selectedProduct.selling_price,
+            jan_count: this.selectedProduct.jan_count,
+            min_price: this.selectedProduct.min_price,
+            max_price: this.selectedProduct.max_price
+        } : null;
+
+        const formState = {
+            manufacturerCode: this.currentManufacturerCode,
+            manufacturerName: this.elements.manufacturerName.textContent,
+            isManufacturerEmpty: this.elements.manufacturerName.classList.contains('empty'),
+            productNumber: this.currentProductNumber,
+            productName: document.getElementById('productName') ? document.getElementById('productName').value : '',
+            selectedProduct: selectedProductData,
+            selectedJanCodes: this.currentJanCodes,
+            stepStatuses: {
+                step1: document.getElementById('step1-number').className,
+                step2: document.getElementById('step2-number').className,
+                step3: document.getElementById('step3-number').className,
+                step4: document.getElementById('step4-number').className
+            },
+            productNumberDisabled: this.elements.productNumber.disabled,
+            productSearchBtnDisabled: document.getElementById('productSearchBtn').disabled,
+            executeBtnDisabled: this.elements.executeBtn.disabled,
+            productListVisible: this.elements.productList.style.display === 'block',
+            targetProductsVisible: this.elements.targetProducts.style.display === 'block'
+        };
+        
+        sessionStorage.setItem('singleProductFormState', JSON.stringify(formState));
+    }
+
+    /**
+     * sessionStorageからフォーム状態を復元
+     */
+    restoreFormState() {
+        const savedState = sessionStorage.getItem('singleProductFormState');
+        if (!savedState) {
+            return;
+        }
+        
+        try {
+            const formState = JSON.parse(savedState);
+            
+            // メーカーコードの復元
+            if (formState.manufacturerCode) {
+                this.elements.manufacturerCode.value = formState.manufacturerCode;
+                this.currentManufacturerCode = formState.manufacturerCode;
+                
+                // メーカー名の復元
+                if (formState.manufacturerName && formState.manufacturerName !== 'メーカーコードを入力してください') {
+                    this.elements.manufacturerName.textContent = formState.manufacturerName;
+                    if (!formState.isManufacturerEmpty) {
+                        this.elements.manufacturerName.classList.remove('empty');
+                    }
+                    
+                    // メーカーが確認されている場合、メッセージを表示
+                    const messageElement = document.getElementById('manufacturer-message');
+                    if (messageElement) {
+                        messageElement.innerHTML = '<div class="success-message"><i class="bi bi-check-circle"></i>メーカー情報が確認されました</div>';
+                    }
+                }
+            }
+            
+            // 品番の復元
+            if (formState.productNumber) {
+                this.elements.productNumber.value = formState.productNumber;
+                this.currentProductNumber = formState.productNumber;
+            }
+            
+            // 品番名の復元
+            if (formState.productName) {
+                const productNameInput = document.getElementById('productName');
+                if (productNameInput) {
+                    productNameInput.value = formState.productName;
+                }
+                
+                // 選択された商品名も復元
+                const selectedProductName = document.getElementById('selectedProductName');
+                if (selectedProductName) {
+                    selectedProductName.textContent = formState.productName;
+                }
+            }
+            
+            // 選択された商品情報の復元
+            if (formState.selectedProduct) {
+                this.selectedProduct = formState.selectedProduct;
+            }
+            
+            // JANコードの復元
+            if (formState.selectedJanCodes && formState.selectedJanCodes.length > 0) {
+                this.currentJanCodes = formState.selectedJanCodes;
+            }
+            
+            // ステップ状態の復元
+            if (formState.stepStatuses) {
+                Object.keys(formState.stepStatuses).forEach(stepId => {
+                    const element = document.getElementById(stepId + '-number');
+                    if (element) {
+                        element.className = formState.stepStatuses[stepId];
+                    }
+                });
+            }
+            
+            // フィールドの有効/無効状態の復元
+            this.elements.productNumber.disabled = formState.productNumberDisabled;
+            const productSearchBtn = document.getElementById('productSearchBtn');
+            if (productSearchBtn) {
+                productSearchBtn.disabled = formState.productSearchBtnDisabled;
+            }
+            this.elements.executeBtn.disabled = formState.executeBtnDisabled;
+            
+            // 品番リストの表示状態を復元
+            if (formState.productListVisible) {
+                this.elements.productList.style.display = 'block';
+            }
+            
+            // 対象商品エリアの表示状態を復元
+            if (formState.targetProductsVisible) {
+                this.elements.targetProducts.style.display = 'block';
+            }
+            
+            // URLコピーセクションの表示
+            if (formState.selectedJanCodes && formState.selectedJanCodes.length > 0) {
+                this.showUrlCopySection();
+            }
+            
+            // 品番リストの再取得と選択状態の復元
+            if (formState.manufacturerCode && formState.productNumber) {
+                // 少し遅延させて実行（DOMの準備を待つ）
+                setTimeout(() => {
+                    this.fetchProductList(formState.manufacturerCode, formState.productNumber);
+                    
+                    // 商品選択状態の復元
+                    if (formState.selectedProduct && formState.productName) {
+                        setTimeout(() => {
+                            const productItems = document.querySelectorAll('.product-item');
+                            productItems.forEach(item => {
+                                const productNameElement = item.querySelector('.product-name');
+                                if (productNameElement && productNameElement.textContent === formState.selectedProduct.product_name) {
+                                    item.click();
+                                }
+                            });
+                        }, 200);
+                    }
+                }, 100);
+            }
+            
+        } catch (error) {
+            console.error('フォーム状態の復元エラー:', error);
+            sessionStorage.removeItem('singleProductFormState');
+        }
+    }
+
+    /**
+     * sessionStorageをクリア
+     */
+    clearFormState() {
+        sessionStorage.removeItem('singleProductFormState');
+    }
     
     /**
      * イベントバインド
      */
     bindEvents() {
-        // Step 1: メーカーコード入力処理
-        this.elements.manufacturerCode.addEventListener('input', () => {
-            const code = this.elements.manufacturerCode.value.trim();
+        // Step 1: メーカーコード入力処理（数値のみ、7桁制限）
+        this.elements.manufacturerCode.addEventListener('input', (e) => {
+            let code = e.target.value;
+            
+            // 数値以外を除去
+            code = code.replace(/[^0-9]/g, '');
+            
+            // 最大7桁に制限
+            if (code.length > 7) {
+                code = code.substring(0, 7);
+            }
+            
+            // 入力フィールドに反映
+            e.target.value = code;
+            
             this.currentManufacturerCode = code;
-            console.log('メーカーコード入力:', code);
             
             if (code) {
-                this.validateManufacturerCode(code);
+                // 入力中は検証を行わない
             } else {
                 this.resetManufacturerDisplay();
                 this.resetSteps([2, 3, 4]);
                 this.hideUrlCopySection();
+                this.saveFormState();
+            }
+        });
+
+        // ENTERキー処理
+        this.elements.manufacturerCode.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                
+                const code = e.target.value;
+                if (code) {
+                    // 7桁になるよう前0埋め
+                    const formattedCode = code.padStart(7, '0');
+                    e.target.value = formattedCode;
+                    this.currentManufacturerCode = formattedCode;
+                    
+                    // 検証実行
+                    this.validateManufacturerCode(formattedCode);
+                }
+            }
+        });
+
+        // フォーカスアウト時の処理
+        this.elements.manufacturerCode.addEventListener('blur', (e) => {
+            const code = e.target.value;
+            if (code) {
+                // 7桁になるよう前0埋め
+                const formattedCode = code.padStart(7, '0');
+                e.target.value = formattedCode;
+                this.currentManufacturerCode = formattedCode;
+                
+                // 検証実行
+                this.validateManufacturerCode(formattedCode);
             }
         });
 
@@ -117,7 +368,6 @@ class SingleProductForm {
         this.elements.productNumber.addEventListener('input', () => {
             const number = this.elements.productNumber.value.trim();
             this.currentProductNumber = number;
-            console.log('品番入力:', number);
             
             if (number && this.currentManufacturerCode) {
                 this.validateProductNumber(this.currentManufacturerCode, number);
@@ -125,6 +375,15 @@ class SingleProductForm {
                 this.resetProductDisplay();
                 this.resetSteps([3, 4]);
                 this.hideUrlCopySection();
+                this.saveFormState();
+            }
+        });
+
+        // 品番でEnterキーを押した時も保存
+        this.elements.productNumber.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.saveFormState();
             }
         });
 
@@ -145,83 +404,92 @@ class SingleProductForm {
                 this.showCopySuccess();
             }
         });
+
+        // 実行ボタンのイベント（必要に応じて後で実装）
     }
     
     /**
      * メーカーコード検証
      */
     validateManufacturerCode(code) {
-        console.log('メーカーコード検証開始:', code);
-        
         const searchUrl = `${this.apiBase}/search-makers?keyword=${encodeURIComponent(code)}&exact=1`;
         
-        fetch(searchUrl, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/json'
-            }
+        this.fetchWithAuth(searchUrl, {
+            method: 'GET'
         })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-            console.log('メーカー検証結果:', data);
-            
-            if (data.success && data.data.length > 0) {
+            if (data.success && data.data && data.data.length > 0) {
                 const maker = data.data[0];
                 this.showManufacturerFound(maker);
                 this.enableStep2();
+                
+                // 成功時は次の入力フィールドにフォーカス
+                this.elements.productNumber.focus();
             } else {
                 this.showManufacturerNotFound();
                 this.resetSteps([2, 3, 4]);
-                this.hideUrlCopySection();
+                
+                // エラー時は同じフィールドに留まる
+                this.elements.manufacturerCode.focus();
+                this.elements.manufacturerCode.select();
             }
         })
         .catch(error => {
-            console.error('メーカー検証エラー:', error);
-            this.showManufacturerError(error.message);
+            console.error('メーカーコード検証エラー:', error);
+            this.showManufacturerMessage(`検証エラー: ${error.message}`, 'error');
             this.resetSteps([2, 3, 4]);
-            this.hideUrlCopySection();
+            
+            // エラー時も同じフィールドに留まる
+            this.elements.manufacturerCode.focus();
+            this.elements.manufacturerCode.select();
         });
     }
 
     /**
-     * 品番存在確認
+     * 品番存在確認（エラーハンドリング改善版）
      */
     validateProductNumber(manufacturerCode, productNumber) {
         const validateUrl = `${this.apiBase}/validate-product-number?manufacturer_code=${encodeURIComponent(manufacturerCode)}&product_number=${encodeURIComponent(productNumber)}`;
         
-        fetch(validateUrl, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/json'
-            }
+        this.fetchWithAuth(validateUrl, {
+            method: 'GET'
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(response => response.text())
+        .then(text => {
+            if (!text) {
+                console.error('Empty response from validate-product-number API');
+                throw new Error('サーバーからの応答が空です');
+            }
+            
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('Invalid JSON response:', text);
+                throw new Error('サーバーからの応答が不正です');
+            }
+            
             if (data.success && data.exists) {
                 this.fetchProductList(manufacturerCode, productNumber);
             } else {
                 this.showProductMessage('該当する品番が見つかりません', 'error');
                 this.resetSteps([3, 4]);
                 this.hideUrlCopySection();
+                this.saveFormState();
             }
         })
         .catch(error => {
             console.error('品番検証エラー:', error);
-            this.showProductMessage('品番検証でエラーが発生しました', 'error');
+            this.showProductMessage(`品番検証でエラーが発生しました: ${error.message}`, 'error');
             this.resetSteps([3, 4]);
             this.hideUrlCopySection();
+            this.saveFormState();
         });
     }
 
     /**
-     * 品番リスト取得
+     * 品番リスト取得（エラーハンドリング改善版）
      */
     fetchProductList(manufacturerCode, productNumber) {
         console.log('品番リスト取得開始:', manufacturerCode, productNumber);
@@ -235,8 +503,26 @@ class SingleProductForm {
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(text => {
+            if (!text) {
+                console.error('Empty response from search-products API');
+                throw new Error('サーバーからの応答が空です');
+            }
+            
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('Invalid JSON response:', text);
+                throw new Error('サーバーからの応答が不正です');
+            }
+            
             console.log('品番リスト取得結果:', data);
             
             if (data.success && data.data.length > 0) {
@@ -248,6 +534,7 @@ class SingleProductForm {
                 this.showProductMessage('該当する品番が見つかりません', 'error');
                 this.resetSteps([3, 4]);
                 this.hideUrlCopySection();
+                this.saveFormState();
             }
         })
         .catch(error => {
@@ -255,6 +542,7 @@ class SingleProductForm {
             this.showProductMessage(`品番検索でエラーが発生しました: ${error.message}`, 'error');
             this.resetSteps([3, 4]);
             this.hideUrlCopySection();
+            this.saveFormState();
         });
     }
 
@@ -269,6 +557,9 @@ class SingleProductForm {
         messageElement.innerHTML = '<div class="success-message"><i class="bi bi-check-circle"></i>メーカー情報が確認されました</div>';
         
         this.updateStepStatus(1, 'completed');
+        
+        // 状態を保存
+        this.saveFormState();
     }
 
     showManufacturerNotFound() {
@@ -279,6 +570,14 @@ class SingleProductForm {
         messageElement.innerHTML = '<div class="text-danger"><i class="bi bi-exclamation-triangle"></i>該当するメーカーが見つかりません</div>';
         
         this.updateStepStatus(1, 'disabled');
+    }
+
+    showManufacturerMessage(message, type) {
+        const messageElement = document.getElementById('manufacturer-message');
+        const className = type === 'success' ? 'success-message' : 'text-danger';
+        const icon = type === 'success' ? 'bi-check-circle' : 'bi-exclamation-triangle';
+        
+        messageElement.innerHTML = `<div class="${className}"><i class="bi ${icon}"></i> ${message}</div>`;
     }
 
     showManufacturerError(errorMessage) {
@@ -338,14 +637,15 @@ class SingleProductForm {
         });
         
         this.elements.productList.style.display = 'block';
+        
+        // 状態を保存
+        this.saveFormState();
     }
 
     /**
      * 商品選択処理
      */
     selectProduct(element, product) {
-        console.log('商品選択:', product);
-        
         document.querySelectorAll('.product-item').forEach(item => {
             item.classList.remove('selected');
         });
@@ -362,22 +662,19 @@ class SingleProductForm {
         
         this.fetchTargetProducts(product);
         this.elements.targetProducts.style.display = 'block';
+        
+        // 状態を保存
+        this.saveFormState();
     }
 
     /**
      * 集計対象商品（JANコード）取得
      */
     fetchTargetProducts(product) {
-        console.log('JANコード取得開始:', product);
-        
         const searchUrl = `${this.apiBase}/get-target-products?manufacturer_code=${encodeURIComponent(this.currentManufacturerCode)}&product_number=${encodeURIComponent(this.currentProductNumber)}&product_name=${encodeURIComponent(product.product_name)}`;
         
-        fetch(searchUrl, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/json'
-            }
+        this.fetchWithAuth(searchUrl, {
+            method: 'GET'
         })
         .then(response => response.json())
         .then(data => {
@@ -400,9 +697,8 @@ class SingleProductForm {
                 
                 this.showUrlCopySection();
                 
-                if (data.summary) {
-                    console.log('商品サマリー:', data.summary);
-                }
+                // 状態を保存
+                this.saveFormState();
             } else {
                 const janList = document.getElementById('janList');
                 janList.innerHTML = '<div class="text-muted">JANコードが見つかりません</div>';
@@ -514,7 +810,6 @@ class SingleProductForm {
     initializeMakerModal() {
         if (this.elements.makerReferenceModal) {
             this.elements.makerReferenceModal.addEventListener('show.bs.modal', () => {
-                console.log('メーカーモーダル表示');
                 this.initializeMakerModalContent();
             });
         }
@@ -564,8 +859,6 @@ class SingleProductForm {
         if (selectMakerBtn) {
             selectMakerBtn.addEventListener('click', () => {
                 if (this.selectedMaker) {
-                    console.log('選択されたメーカー:', this.selectedMaker);
-                    
                     this.elements.manufacturerCode.value = this.selectedMaker.manufacturer_code;
                     this.currentManufacturerCode = this.selectedMaker.manufacturer_code;
                     
@@ -577,8 +870,24 @@ class SingleProductForm {
                         modal.hide();
                     }
                     
+                    // モーダルが完全に閉じてからフォーカスを移動
+                    this.elements.makerReferenceModal.addEventListener('hidden.bs.modal', () => {
+                        this.elements.productNumber.focus();
+                    }, { once: true });
+                    
                     this.selectedMaker = null;
                 }
+            });
+        }
+
+        // キャンセルボタンのイベント処理
+        const cancelBtn = this.elements.makerReferenceModal.querySelector('.modal-footer .btn-secondary');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                // モーダルが完全に閉じてからフォーカスを戻す
+                this.elements.makerReferenceModal.addEventListener('hidden.bs.modal', () => {
+                    this.elements.manufacturerCode.focus();
+                }, { once: true });
             });
         }
     }
@@ -609,20 +918,22 @@ class SingleProductForm {
      * メーカー検索実行（モーダル用）
      */
     searchMakersInModal(keyword, page = 1) {
-        console.log('モーダルメーカー検索:', keyword, 'ページ:', page);
-        
         this.showModalLoading();
         this.currentKeyword = keyword;
         this.currentPage = page;
 
-        const searchUrl = `${this.apiBase}/search-makers?keyword=${encodeURIComponent(keyword)}&page=${page}`;
+        // 除外範囲をパラメータに追加
+        const params = new URLSearchParams({
+            keyword: keyword,
+            page: page,
+            exclude_range_start: '0100000',
+            exclude_range_end: '0199999'
+        });
 
-        fetch(searchUrl, {
-            method: 'GET',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Content-Type': 'application/json'
-            }
+        const searchUrl = `${this.apiBase}/search-makers?${params}`;
+
+        this.fetchWithAuth(searchUrl, {
+            method: 'GET'
         })
         .then(response => response.json())
         .then(data => {
@@ -685,6 +996,7 @@ class SingleProductForm {
                 <td>${this.escapeHtml(maker.manufacturer_name)}</td>
             `;
             
+            // クリックイベント
             row.addEventListener('click', () => {
                 document.querySelectorAll('#maker_search_results tr').forEach(tr => {
                     tr.classList.remove('table-primary');
@@ -693,7 +1005,35 @@ class SingleProductForm {
                 row.classList.add('table-primary');
                 this.selectedMaker = maker;
                 document.getElementById('btn_select_maker').disabled = false;
-                this.updateSelectedMakerInfo(maker);
+            });
+            
+            // ダブルクリックイベント
+            row.addEventListener('dblclick', () => {
+                // 選択状態にする
+                document.querySelectorAll('#maker_search_results tr').forEach(tr => {
+                    tr.classList.remove('table-primary');
+                });
+                row.classList.add('table-primary');
+                this.selectedMaker = maker;
+                
+                // 選択処理を実行
+                this.elements.manufacturerCode.value = this.selectedMaker.manufacturer_code;
+                this.currentManufacturerCode = this.selectedMaker.manufacturer_code;
+                
+                this.showManufacturerFound(this.selectedMaker);
+                this.enableStep2();
+                
+                const modal = bootstrap.Modal.getInstance(this.elements.makerReferenceModal);
+                if (modal) {
+                    modal.hide();
+                }
+                
+                // モーダルが完全に閉じてからフォーカスを移動
+                this.elements.makerReferenceModal.addEventListener('hidden.bs.modal', () => {
+                    this.elements.productNumber.focus();
+                }, { once: true });
+                
+                this.selectedMaker = null;
             });
             
             resultsContainer.appendChild(row);
@@ -701,15 +1041,11 @@ class SingleProductForm {
     }
 
     updateSelectedMakerInfo(maker) {
-        document.getElementById('selected_code').textContent = maker.manufacturer_code;
-        document.getElementById('selected_name').textContent = maker.manufacturer_name;
-        document.getElementById('selected_maker_info').style.display = 'block';
+        // 選択中のメーカー表示機能を削除
     }
 
     clearSelectedMakerInfo() {
-        document.getElementById('selected_maker_info').style.display = 'none';
-        document.getElementById('selected_code').textContent = '-';
-        document.getElementById('selected_name').textContent = '-';
+        // 選択中のメーカー表示機能を削除
     }
 
     updateResultsInfo(pagination, keyword) {
@@ -864,7 +1200,7 @@ class SingleProductForm {
     }
 
     /**
-     * 品番検索実行（モーダル用）
+     * 品番検索実行（モーダル用・エラーハンドリング改善版）
      */
     searchProductsInModal(keyword, page = 1) {
         console.log('モーダル品番検索:', keyword, 'ページ:', page);
@@ -887,8 +1223,26 @@ class SingleProductForm {
                 'Content-Type': 'application/json'
             }
         })
-        .then(response => response.json())
-        .then(data => {
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.text();
+        })
+        .then(text => {
+            if (!text) {
+                console.error('Empty response from search-products API');
+                throw new Error('サーバーからの応答が空です');
+            }
+            
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('Invalid JSON response:', text);
+                throw new Error('サーバーからの応答が不正です');
+            }
+            
             this.hideProductModalLoading();
             
             if (data.success && data.data.length > 0) {
