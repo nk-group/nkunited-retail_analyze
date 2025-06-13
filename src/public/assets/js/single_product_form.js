@@ -921,7 +921,9 @@ class SingleProductForm {
             keyword: keyword,
             page: page,
             exclude_range_start: '0100000',
-            exclude_range_end: '0199999'
+            exclude_range_end: '0199999',
+            exclude_range_2_start: '0001000', // 追加
+            exclude_range_2_end: '0001999'   // 追加
         });
 
         const searchUrl = `${this.apiBase}/search-makers?${params}`;

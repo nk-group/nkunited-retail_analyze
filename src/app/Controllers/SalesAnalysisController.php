@@ -692,38 +692,23 @@ class SalesAnalysisController extends BaseController
         $exact = $this->request->getGet('exact');
         $limit = 10;
         
-        // 除外範囲パラメータ
-        $excludeRangeStart = $this->request->getGet('exclude_range_start');
-        $excludeRangeEnd = $this->request->getGet('exclude_range_end');
-        
         try {
-            $builder = $this->manufacturerModel;
-            
-            // 除外範囲の適用（0100000-0199999を除外）
-            if ($excludeRangeStart && $excludeRangeEnd) {
-                $builder = $builder->groupStart()
-                        ->where('manufacturer_code <', $excludeRangeStart)
-                        ->orWhere('manufacturer_code >', $excludeRangeEnd)
-                        ->groupEnd();
-            }
+            // ManufacturerModel のメソッドを使用して検索
+            $offset = ($page - 1) * $limit;
+            $makers = $this->manufacturerModel->searchMakersWithExclusion($keyword, $limit, $offset);
+            $totalCount = $this->manufacturerModel->countAllWithExclusion($keyword);
+
+            // $exact を使用した完全一致検索が必要な場合は、モデルに別途メソッドを用意するか、
+            // ここで $keyword を元に $makers をフィルタリングする必要がある。
+            // 現在の searchMakersWithExclusion は LIKE 検索。
+            // もし $exact が true の場合、結果をフィルタリングする例：            
             
             if (!empty($keyword)) {
                 if ($exact) {
-                    $builder = $builder->where('manufacturer_code', $keyword);
-                } else {
-                    $builder = $builder->groupStart()
-                        ->like('manufacturer_code', $keyword)
-                        ->orLike('manufacturer_name', $keyword)
-                        ->groupEnd();
+                    $makers = array_filter($makers, fn($maker) => $maker['manufacturer_code'] === $keyword);
+                    $totalCount = count($makers); // 正確な件数にするため再カウント                    
                 }
             }
-            
-            $totalCount = $builder->countAllResults(false);
-            
-            $makers = $builder
-                ->orderBy('manufacturer_code')
-                ->limit($limit, ($page - 1) * $limit)
-                ->findAll();
 
             $totalPages = ceil($totalCount / $limit);
             $hasNextPage = $page < $totalPages;
