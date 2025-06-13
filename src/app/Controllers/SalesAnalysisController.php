@@ -772,6 +772,7 @@ class SalesAnalysisController extends BaseController
         $keyword = $this->request->getGet('keyword');
         $page = (int) ($this->request->getGet('page') ?? 1);
         $limit = 50;
+
         
         try {
             if (empty($manufacturerCode)) {
@@ -789,12 +790,23 @@ class SalesAnalysisController extends BaseController
                 ]);
             }
 
-            $products = $this->productModel->getProductNumberGroups(
-                $manufacturerCode, 
-                $keyword, 
-                $limit
+            // ProductModelからページネーション対応でデータを取得
+            // 仮定: getProductNumberGroups は ['data' => [], 'total' => 0] のような形式で返す
+            // モデル側の改修または新しいメソッドの作成が必要な場合があります。
+            $pagedResult = $this->productModel->getProductNumberGroups(
+                $manufacturerCode,
+                $keyword,
+                $limit, // $limit は 50 のまま
+                $page   // page パラメータを渡す
             );
 
+            $products = $pagedResult['data'] ?? [];
+            $totalCount = (int)($pagedResult['total'] ?? 0);
+            
+
+
+            // $products は $pagedResult['data'] を使用するため、上記の再呼び出しは不要
+            // 前回の修正で削除済みのはずですが、念のためコメントアウト
             $formattedProducts = [];
             foreach ($products as $product) {
                 $formattedProducts[] = [
@@ -811,22 +823,25 @@ class SalesAnalysisController extends BaseController
                 ];
             }
 
+            $totalPages = ($limit > 0 && $totalCount > 0) ? (int)ceil($totalCount / $limit) : 1;
+            
             return $this->response->setJSON([
                 'success' => true,
                 'data' => $formattedProducts,
                 'pagination' => [
-                    'current_page' => 1,
-                    'total_count' => count($formattedProducts),
+                    'current_page' => $page,
+                    'total_count' => $totalCount,
                     'per_page' => $limit,
-                    'total_pages' => 1,
-                    'has_next_page' => false,
-                    'has_prev_page' => false,
-                    'from' => count($formattedProducts) > 0 ? 1 : 0,
-                    'to' => count($formattedProducts)
+                    'total_pages' => $totalPages,
+                    'has_next_page' => $page < $totalPages,
+                    'has_prev_page' => $page > 1,
+                    'from' => $totalCount > 0 ? (($page - 1) * $limit) + 1 : 0,
+                    'to' => $totalCount > 0 ? min($page * $limit, $totalCount) : 0,
                 ],
                 'keyword' => $keyword,
-                'manufacturer' => $manufacturer
+                'manufacturer' => $manufacturer // 元のコード通りメーカーオブジェクトを返す
             ]);
+
 
         } catch (\Exception $e) {
             log_message('error', '品番検索エラー: ' . $e->getMessage());

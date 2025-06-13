@@ -1231,6 +1231,7 @@ class SingleProductForm {
                 throw new Error('サーバーからの応答が不正です');
             }
             
+            console.log('API Response for searchProductsInModal:', data); // ★デバッグログ追加
             this.hideProductModalLoading();
             
             if (data.success && data.data.length > 0) {
@@ -1240,8 +1241,12 @@ class SingleProductForm {
             } else {
                 this.showProductNoResults();
                 if (data.pagination && data.pagination.total_count === 0) {
+                    // 検索結果0件でも、ページネーション情報は更新する
                     this.updateProductResultsInfo(data.pagination, data.keyword);
+                    this.updateProductPagination(data.pagination); 
                 }
+                // data.success が false の場合や、data.data が存在しない場合も考慮
+                console.warn('Search returned no results or failed:', data.message || 'No data');
             }
         })
         .catch(error => {

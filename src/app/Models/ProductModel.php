@@ -88,8 +88,6 @@ class ProductModel extends Model
             $product['effective_cost_price'] = $this->getEffectiveCostPrice($product);
         }
         
-        log_message('info', 'ProductModel::getProductsByJanCodes 取得件数: ' . count($results));
-        
         return $results;
     }
 
@@ -124,8 +122,6 @@ class ProductModel extends Model
         ";
         
         $results = $this->db->query($sql, $skuCodes)->getResultArray();
-        
-        log_message('info', 'ProductModel::getJanCodesBySku SKU入力: ' . count($skuCodes) . ', JAN取得: ' . count($results));
         
         return array_column($results, 'jan_code');
     }
@@ -265,10 +261,12 @@ class ProductModel extends Model
      * @param string $manufacturerCode メーカーコード
      * @param string $keyword 検索キーワード（品番または品番名）
      * @param int $limit 取得件数制限
+     * @param int $page 現在のページ番号
      * @return array
      */
-    public function getProductNumberGroups($manufacturerCode, $keyword = '', $limit = 50)
+    public function getProductNumberGroups($manufacturerCode, $keyword = '', $limit = 50, $page = 1)
     {
+        // --- 総件数取得のためのクエリビルダ準備 ---
         $builder = $this->db->table($this->table);
         
         $builder->select([
@@ -308,20 +306,39 @@ class ProductModel extends Model
             'season_code',
             'selling_price'
         ]);
+
+        // 総件数を取得 (GROUP BY の結果の行数をカウント)
+        // GROUP BY があるため、サブクエリで一度グループ化し、その結果の行数をカウントする
+        $countQueryBuilder = clone $builder; // 元のビルダを複製
+        $subQuery = $countQueryBuilder->getCompiledSelect(false); // SQL文字列を取得 (実行はしない)
         
+        // SQL Serverでは、GROUP BYされた結果の総数を取得するために、
+        // 元のクエリをサブクエリとしてラップし、その行数をカウントする必要がある場合があります。
+        // ここでは、元のクエリの条件でグループ化された結果の数を取得します。
+        // 実際には、元のクエリのSELECTリストを COUNT(*) に置き換えるか、
+        // サブクエリでラップしてCOUNTする方が正確です。
+        // CodeIgniterの countAllResults(false) は、limit や offset を無視して件数を取得しますが、
+        // GROUP BY がある場合は、グループ化された後の行数を返します。
+        $totalCount = $countQueryBuilder->countAllResults(false); // false でリセットしない
+
+        // --- データ取得のためのクエリビルダ (総件数取得で使った条件を再利用) ---
+        // $builder は総件数取得で条件が設定済みなので、orderBy と limit/offset を追加
         $builder->orderBy('product_number');
         $builder->orderBy('product_name');
-        
+
         if ($limit > 0) {
-            $builder->limit($limit);
+            $offset = ($page - 1) * $limit;
+            // SQL Server の場合、OFFSET FETCH を使用
+            // CodeIgniter の limit($limit, $offset) は SQL Server では OFFSET FETCH に変換されるはず
+            $builder->limit($limit, $offset);
         }
-        
-        $result = $builder->get()->getResultArray();
-        
-        log_message('info', 'ProductModel::getProductNumberGroups SQL: ' . $this->db->getLastQuery());
-        log_message('info', 'ProductModel::getProductNumberGroups 結果件数: ' . count($result));
-        
-        return $result;
+
+        $results = $builder->get()->getResultArray();
+
+        return [
+            'data'  => $results,
+            'total' => $totalCount
+        ];
     }
 
     /**
@@ -390,8 +407,6 @@ class ProductModel extends Model
             }
         }
         
-        log_message('info', 'ProductModel::getProductBasicInfo SQL: ' . $this->db->getLastQuery());
-        
         return $result;
     }
 
@@ -459,9 +474,6 @@ class ProductModel extends Model
             // 価格情報の整理
             $item['effective_cost_price'] = $this->getEffectiveCostPrice($item);
         }
-        
-        log_message('info', 'ProductModel::getJanCodesByGroup SQL: ' . $this->db->getLastQuery());
-        log_message('info', 'ProductModel::getJanCodesByGroup 結果件数: ' . count($result));
         
         return $result;
     }
