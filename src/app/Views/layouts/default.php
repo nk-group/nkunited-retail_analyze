@@ -10,8 +10,8 @@
     // アセットバージョン管理
     // ファイル更新時は該当バージョンを変更してください
     // ========================================
-    $cssVersion = '1.0.1'; // CSS更新時にここを変更
-    $jsVersion = '1.0.1';  // JavaScript更新時にここを変更
+    $cssVersion = '1.0.2'; // CSS更新時にここを変更
+    $jsVersion = '1.0.2';  // JavaScript更新時にここを変更
     ?>
     
     <link href="<?= base_url('assets/bootstrap/css/bootstrap.min.css') ?>" rel="stylesheet">

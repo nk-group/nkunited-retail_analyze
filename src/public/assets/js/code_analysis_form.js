@@ -28,8 +28,6 @@ class CodeAnalysisForm {
      * 初期化
      */
     init() {
-        console.log('=== CodeAnalysisForm 初期化開始 ===');
-        
         if (!this.initializeUrls()) {
             return;
         }
@@ -41,8 +39,6 @@ class CodeAnalysisForm {
         this.bindEvents();
         this.initializeState();
         this.initializeProductSearchModal();
-        
-        console.log('=== CodeAnalysisForm 初期化完了 ===');
     }
     
     /**
@@ -62,12 +58,6 @@ class CodeAnalysisForm {
             });
             return false;
         }
-        
-        console.log('URL設定完了:', {
-            baseUrl: this.baseUrl,
-            siteUrl: this.siteUrl,
-            apiBase: this.apiBase
-        });
         
         return true;
     }
@@ -141,8 +131,6 @@ class CodeAnalysisForm {
         this.elements.currentCodeType.textContent = 
             selectedType === 'jan_code' ? 'JANコード' : 'SKUコード';
         
-        console.log('コード種類変更:', selectedType);
-        
         // 既存入力のクリアと確認
         if (this.hasAnyInput()) {
             if (confirm('コード種類を変更すると、入力済みの内容がクリアされます。よろしいですか？')) {
@@ -209,8 +197,6 @@ class CodeAnalysisForm {
         if (newInput) {
             newInput.focus();
         }
-        
-        console.log('商品行追加: 行数=', this.currentRowCount);
     }
     
     /**
@@ -566,8 +552,6 @@ class CodeAnalysisForm {
                     this.productData.delete(code);
                 }
             }
-            
-            console.log('商品行削除: index=', index);
         }
     }
     
@@ -708,8 +692,6 @@ class CodeAnalysisForm {
         
         // 隠しフィールドを更新
         this.elements.productCodesInput.value = JSON.stringify(this.validProductCodes);
-        
-        console.log('有効な商品コード更新:', this.validProductCodes);
     }
     
     /**
@@ -883,7 +865,6 @@ class CodeAnalysisForm {
             }
         }
         
-        console.log('フォーム送信: 有効コード数=', this.validProductCodes.length);
         return true;
     }
     
@@ -1143,8 +1124,6 @@ class CodeAnalysisForm {
      * 商品検索実行（モーダル用）
      */
     async searchProductsInModal(keyword, page = 1) {
-        console.log('モーダル商品検索:', keyword, 'ページ:', page);
-        
         // キーワードが空の場合の処理
         if (!keyword) {
             this.showProductSearchNoResults();
@@ -1177,8 +1156,6 @@ class CodeAnalysisForm {
 
         try {
             const searchUrl = `${this.apiBase}/search-all-products?keyword=${encodeURIComponent(keyword)}&page=${page}`;
-            
-            console.log('Search URL:', searchUrl);
 
             const response = await fetch(searchUrl, {
                 method: 'GET',
@@ -1401,8 +1378,6 @@ class CodeAnalysisForm {
             return;
         }
         
-        console.log('モーダルから商品追加:', this.selectedProductFromModal);
-        
         // 現在の行数を再確認
         const actualRows = document.querySelectorAll('.product-input-row');
         this.currentRowCount = actualRows.length;
@@ -1427,8 +1402,6 @@ class CodeAnalysisForm {
                 targetIndex = this.currentRowCount;
             }
         }
-        
-        console.log('対象行決定:', targetIndex, '現在行数:', this.currentRowCount);
         
         // 対象行の入力フィールドに商品コードを設定
         const targetInput = document.getElementById(`productCode${targetIndex}`);
@@ -1480,8 +1453,6 @@ class CodeAnalysisForm {
             });
             
             this.selectedProductFromModal = null;
-            
-            console.log('商品追加完了。次の対象行:', this.currentSearchRowIndex);
         } else {
             alert(`この商品には${this.currentCodeType === 'jan_code' ? 'JANコード' : 'SKUコード'}が登録されていません。`);
         }

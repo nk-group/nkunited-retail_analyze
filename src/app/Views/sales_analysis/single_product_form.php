@@ -304,20 +304,6 @@
                     </div>
                 </div>
 
-                <!-- 選択された品番情報表示 -->
-                <div id="selected_product_info" class="selected-product-info" style="display: none;">
-                    <div class="info-header">
-                        <i class="bi bi-check-circle-fill me-2"></i>選択中の品番
-                    </div>
-                    <div class="info-content">
-                        <strong>品番:</strong> <span id="selected_product_number">-</span><br>
-                        <strong>品名:</strong> <span id="selected_product_name">-</span><br>
-                        <strong>シーズン:</strong> <span id="selected_season_code">-</span><br>
-                        <strong>価格:</strong> <span id="selected_selling_price">-</span><br>
-                        <strong>SKU数:</strong> <span id="selected_jan_count">-</span>
-                    </div>
-                </div>
-
                 <!-- 検索結果情報 -->
                 <div id="product_search_results_info" class="search-results-info" style="display: none;">
                     <i class="bi bi-info-circle me-2"></i>

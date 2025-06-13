@@ -1,5 +1,5 @@
 /**
- * 単品分析フォーム専用JavaScript - 完全機能実装版
+ * 単品分析フォーム専用JavaScript
  * (public/assets/js/single_product_form.js)
  */
 
@@ -492,8 +492,6 @@ class SingleProductForm {
      * 品番リスト取得（エラーハンドリング改善版）
      */
     fetchProductList(manufacturerCode, productNumber) {
-        console.log('品番リスト取得開始:', manufacturerCode, productNumber);
-        
         const searchUrl = `${this.apiBase}/search-products?manufacturer_code=${encodeURIComponent(manufacturerCode)}&keyword=${encodeURIComponent(productNumber)}`;
         
         fetch(searchUrl, {
@@ -522,8 +520,6 @@ class SingleProductForm {
                 console.error('Invalid JSON response:', text);
                 throw new Error('サーバーからの応答が不正です');
             }
-            
-            console.log('品番リスト取得結果:', data);
             
             if (data.success && data.data.length > 0) {
                 this.showProductList(data.data);
@@ -678,8 +674,6 @@ class SingleProductForm {
         })
         .then(response => response.json())
         .then(data => {
-            console.log('JANコード取得結果:', data);
-            
             if (data.success && data.data.length > 0) {
                 this.currentJanCodes = data.data.map(item => item.jan_code);
                 
@@ -1092,7 +1086,6 @@ class SingleProductForm {
 
         if (productModal) {
             productModal.addEventListener('show.bs.modal', () => {
-                console.log('品番参照モーダル表示');
                 this.initializeProductModalContent();
             });
         }
@@ -1142,8 +1135,6 @@ class SingleProductForm {
         if (selectProductBtn) {
             selectProductBtn.addEventListener('click', () => {
                 if (this.selectedProductFromModal) {
-                    console.log('選択された品番:', this.selectedProductFromModal);
-                    
                     this.elements.productNumber.value = this.selectedProductFromModal.product_number;
                     this.currentProductNumber = this.selectedProductFromModal.product_number;
                     
@@ -1177,7 +1168,6 @@ class SingleProductForm {
         
         document.getElementById('product_search_keyword').value = '';
         document.getElementById('btn_select_product').disabled = true;
-        this.clearSelectedProductInfo();
         this.hideAllProductModalElements();
         
         if (this.currentManufacturerCode) {
@@ -1203,8 +1193,6 @@ class SingleProductForm {
      * 品番検索実行（モーダル用・エラーハンドリング改善版）
      */
     searchProductsInModal(keyword, page = 1) {
-        console.log('モーダル品番検索:', keyword, 'ページ:', page);
-        
         if (!this.currentManufacturerCode) {
             this.showProductModalError('メーカーが選択されていません');
             return;
@@ -1328,37 +1316,12 @@ class SingleProductForm {
                 row.classList.add('table-primary');
                 this.selectedProductFromModal = product;
                 document.getElementById('btn_select_product').disabled = false;
-                this.updateSelectedProductInfo(product);
             });
             
             resultsContainer.appendChild(row);
         });
     }
 
-    updateSelectedProductInfo(product) {
-        document.getElementById('selected_product_number').textContent = product.product_number;
-        document.getElementById('selected_product_name').textContent = product.product_name;
-        document.getElementById('selected_season_code').textContent = product.season_code || '-';
-        
-        let priceDisplay = '';
-        if (product.min_price === product.max_price) {
-            priceDisplay = `¥${product.selling_price.toLocaleString()}`;
-        } else {
-            priceDisplay = `¥${product.min_price.toLocaleString()} - ¥${product.max_price.toLocaleString()}`;
-        }
-        document.getElementById('selected_selling_price').textContent = priceDisplay;
-        document.getElementById('selected_jan_count').textContent = `${product.jan_count}個`;
-        
-        document.getElementById('selected_product_info').style.display = 'block';
-    }
-
-    clearSelectedProductInfo() {
-        document.getElementById('selected_product_info').style.display = 'none';
-        const fields = ['selected_product_number', 'selected_product_name', 'selected_season_code', 'selected_selling_price', 'selected_jan_count'];
-        fields.forEach(field => {
-            document.getElementById(field).textContent = '-';
-        });
-    }
 
     updateProductResultsInfo(pagination, keyword) {
         if (!pagination) return;

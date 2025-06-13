@@ -1,5 +1,5 @@
 /**
- * 単品分析結果画面専用JavaScript - 完全機能実装版
+ * 単品分析結果画面専用JavaScript
  * (public/assets/js/single_product_result.js)
  */
 
@@ -15,8 +15,6 @@ class SingleProductResult {
      * 初期化
      */
     init() {
-        console.log('クイック分析結果画面が読み込まれました');
-        
         if (!this.initializeElements()) {
             return;
         }
@@ -26,8 +24,6 @@ class SingleProductResult {
         this.initializeUrlShareFeature();
         this.initializeCollapseFeature();
         this.initializeProductModal();
-        
-        console.log('単品分析結果画面初期化完了');
     }
     
     /**
@@ -122,8 +118,6 @@ class SingleProductResult {
         if (executionTimeElement) {
             this.executionTime = parseFloat(executionTimeElement.dataset.executionTime) || 0;
         }
-        
-        console.log('実行時間:', this.executionTime, '秒');
     }
     
     /**
@@ -238,8 +232,6 @@ class SingleProductResult {
         
         this.elements.productModal.classList.add('show');
         document.body.style.overflow = 'hidden';
-        
-        console.log('Product modal opened');
     }
     
     /**
@@ -252,8 +244,6 @@ class SingleProductResult {
         
         this.elements.productModal.classList.remove('show');
         document.body.style.overflow = '';
-        
-        console.log('Product modal closed');
     }
     
     /**
@@ -270,8 +260,6 @@ class SingleProductResult {
      * AI分析用データ生成・表示
      */
     generateAndShowAiData() {
-        console.log('AI分析データ生成開始');
-        
         const baseUrl = document.body.dataset.siteUrl || '';
         const inputJanCodes = this.getInputJanCodes();
         
