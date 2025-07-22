@@ -15,7 +15,7 @@ class SingleProductAnalysisService
     protected $productModel;
     protected $manufacturerModel;
     protected $costMethod = 'average';
-    protected $maxWeeks = 50;
+    protected $maxWeeks = 5000;
     protected $timeout = 30;
     
     public function __construct()

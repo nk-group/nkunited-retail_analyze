@@ -16,8 +16,8 @@
         <button type="button" class="btn btn-outline-info" id="shareUrlBtn">
             <i class="bi bi-share me-2"></i>URL共有
         </button>
-        <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
-            <i class="bi bi-printer me-2"></i>印刷
+        <button type="button" class="btn btn-outline-secondary" onclick="captureScreen()">
+            <i class="bi bi-camera me-2"></i>スクリーンショット
         </button>
     </div>
 
@@ -634,8 +634,8 @@
             <i class="bi bi-arrow-left me-2"></i>分析メニューに戻る
         </a>
         <?php if (!empty($formatted_result['weekly_data'])): ?>
-            <button type="button" class="btn btn-outline-info btn-lg ms-3" onclick="window.print()">
-                <i class="bi bi-printer me-2"></i>印刷
+            <button type="button" class="btn btn-outline-info btn-lg ms-3" onclick="captureScreen()">
+                <i class="bi bi-camera me-2"></i>スクリーンショット
             </button>
         <?php endif; ?>
     </div>
@@ -651,6 +651,163 @@
         </div>
     <?php endif; ?>
 </div>
+
+<!-- スクリーンショット機能 JavaScript -->
+<script>
+// 商品情報をJavaScript変数に設定
+const productInfo = {
+    manufacturerCode: '<?= esc($formatted_result['header_info']['manufacturer_code']) ?>',
+    manufacturerName: '<?= esc($formatted_result['header_info']['manufacturer_name']) ?>',
+    productName: '<?= esc($formatted_result['header_info']['product_name']) ?>'
+};
+
+/**
+ * ファイル名の無効文字を除去
+ */
+function sanitizeFileName(name) {
+    return name.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_').replace(/[^\w\-_.()]/g, '');
+}
+
+/**
+ * スクリーンショット実行関数
+ */
+function captureScreen() {
+    try {
+        // ボタンを一時的に無効化
+        const buttons = document.querySelectorAll('button[onclick="captureScreen()"]');
+        buttons.forEach(btn => {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>処理中...';
+        });
+
+        // キャプチャ範囲を取得（header-section から recommendation-section まで）
+        const startElement = document.querySelector('.header-section');
+        const endElement = document.querySelector('.recommendation-section');
+        
+        if (!startElement || !endElement) {
+            throw new Error('キャプチャ対象の要素が見つかりません');
+        }
+
+        // キャプチャ範囲のコンテナを作成
+        const captureContainer = document.createElement('div');
+        captureContainer.style.position = 'absolute';
+        captureContainer.style.left = '-9999px';
+        captureContainer.style.top = '0';
+        captureContainer.style.background = '#ffffff';
+        captureContainer.style.padding = '20px';
+        captureContainer.style.fontFamily = 'inherit';
+        captureContainer.style.width = '1400px';
+        
+        // 開始要素から終了要素までの全ての要素をクローン
+        let currentElement = startElement;
+        while (currentElement && currentElement !== endElement.nextElementSibling) {
+            const clonedElement = currentElement.cloneNode(true);
+            captureContainer.appendChild(clonedElement);
+            currentElement = currentElement.nextElementSibling;
+        }
+        
+        document.body.appendChild(captureContainer);
+
+        // html2canvas のオプション設定
+        const options = {
+            backgroundColor: '#ffffff',
+            scale: 1,
+            useCORS: true,
+            allowTaint: false,
+            width: 1400,
+            height: captureContainer.scrollHeight + 40,
+            scrollX: 0,
+            scrollY: 0
+        };
+
+        // スクリーンショット実行
+        html2canvas(captureContainer, options)
+            .then(canvas => {
+                // ファイル名生成
+                const currentDate = new Date().toISOString().slice(0, 10);
+                const fileName = `${sanitizeFileName(productInfo.manufacturerCode)}_${sanitizeFileName(productInfo.manufacturerName)}_${sanitizeFileName(productInfo.productName)}_${currentDate}.png`;
+                
+                // ダウンロード実行
+                const link = document.createElement('a');
+                link.download = fileName;
+                link.href = canvas.toDataURL('image/png');
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // 一時的なコンテナを削除
+                document.body.removeChild(captureContainer);
+                
+                // 成功メッセージ
+                showMessage('スクリーンショットを保存しました: ' + fileName, 'success');
+            })
+            .catch(error => {
+                console.error('スクリーンショット生成エラー:', error);
+                
+                // 一時的なコンテナを削除
+                if (document.body.contains(captureContainer)) {
+                    document.body.removeChild(captureContainer);
+                }
+                
+                // エラーメッセージ
+                showMessage('スクリーンショットの生成に失敗しました。再度お試しください。', 'error');
+            })
+            .finally(() => {
+                // ボタンを元に戻す
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-camera me-2"></i>スクリーンショット';
+                });
+            });
+            
+    } catch (error) {
+        console.error('スクリーンショット処理エラー:', error);
+        showMessage('スクリーンショット機能でエラーが発生しました。', 'error');
+        
+        // ボタンを元に戻す
+        const buttons = document.querySelectorAll('button[onclick="captureScreen()"]');
+        buttons.forEach(btn => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-camera me-2"></i>スクリーンショット';
+        });
+    }
+}
+
+/**
+ * メッセージ表示関数
+ */
+function showMessage(message, type = 'info') {
+    // 既存のメッセージがあれば削除
+    const existingAlert = document.querySelector('.screenshot-alert');
+    if (existingAlert) {
+        existingAlert.remove();
+    }
+    
+    // メッセージ作成
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible fade show screenshot-alert`;
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.style.minWidth = '300px';
+    
+    alertDiv.innerHTML = `
+        <i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // 3秒後に自動削除
+    setTimeout(() => {
+        if (document.body.contains(alertDiv)) {
+            alertDiv.remove();
+        }
+    }, 3000);
+}
+</script>
 
 <?php
 // CSS読み込みフラグとbodyクラスを設定
