@@ -15,8 +15,6 @@ class Login extends Controller
         $this->session = \Config\Services::session();
     }
 
-
-
     public function index()
     {
         if ($this->session->get('isLoggedIn')) {
@@ -29,9 +27,8 @@ class Login extends Controller
         return view('login_form', $data);
     }
 
-
     /**
-     * ログイン試行処理 (複数ユーザー対応)
+     * ログイン試行処理 (複数ユーザー対応 + 元URLリダイレクト対応)
      */
     public function attempt()
     {
@@ -60,7 +57,15 @@ class Login extends Controller
         }
 
         if ($loggedIn) {
-            return redirect()->to(site_url('menu')); // メニューページへリダイレクト
+            // 元のURLがある場合はそこにリダイレクト
+            $intendedUrl = $this->session->get('intended_url');
+            if ($intendedUrl) {
+                $this->session->remove('intended_url');
+                return redirect()->to($intendedUrl);
+            }
+            
+            // 元URLがない場合はメニューにリダイレクト
+            return redirect()->to(site_url('menu'));
         } else {
             // ログイン失敗
             $this->session->setFlashdata('error', 'ユーザー名またはパスワードが無効です。');

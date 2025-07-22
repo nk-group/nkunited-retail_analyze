@@ -1,0 +1,514 @@
+/*
+ * 商品販売分析システム - 結果画面専用CSS
+ * (public/assets/css/sales_analysis_result.css)
+ */
+
+/* ===== テーブルスタイル（結果画面用） ===== */
+
+.analysis-table {
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 25px;
+}
+
+.table-header {
+    background: #343a40;
+    color: white;
+    padding: 15px 20px;
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.analysis-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+}
+
+.analysis-table th {
+    background: #495057;
+    color: white;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 600;
+    border: none;
+}
+
+.analysis-table td {
+    padding: 12px 8px;
+    text-align: center;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 13px;
+    border: none;
+}
+
+.text-left {
+    text-align: left !important;
+}
+
+.price-change {
+    background: #fff3cd;
+    border-left: 3px solid #ffc107;
+}
+
+.sold-out {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.best-seller {
+    background: #d4edda;
+    color: #155724;
+}
+
+.negative-sales {
+    background: #ffebee;
+    color: #721c24;
+}
+
+/* ===== 推奨アクション（結果画面用） ===== */
+
+.recommendation-section {
+    background: #d4edda;
+    padding: 20px;
+    border-radius: 8px;
+    margin-top: 20px;
+    border-left: 4px solid #28a745;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.recommendation-section.warning {
+    background: #fff3cd;
+    border-left-color: #ffc107;
+}
+
+.recommendation-section.danger {
+    background: #f8d7da;
+    border-left-color: #dc3545;
+}
+
+.recommendation-section.info {
+    background: #d1ecf1;
+    border-left-color: #17a2b8;
+}
+
+.recommendation-section.primary {
+    background: #d1ecf1;
+    border-left-color: #007bff;
+}
+
+.recommendation-section.secondary {
+    background: #e2e3e5;
+    border-left-color: #6c757d;
+}
+
+.recommendation-section p {
+    margin: 8px 0;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.recommendation-section strong {
+    font-weight: 600;
+}
+
+/* ===== 結果画面用モーダル ===== */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-overlay .modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.show .modal-content {
+    transform: scale(1);
+}
+
+.modal-overlay .modal-header {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-overlay .modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.3s;
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.modal-overlay .modal-body {
+    padding: 20px;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.product-group-info {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #28a745;
+}
+
+.product-group-info h4 {
+    margin: 0 0 8px 0;
+    color: #155724;
+    font-size: 18px;
+}
+
+.product-group-info p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 14px;
+}
+
+.products-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.products-table th {
+    background: #343a40;
+    color: white;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.products-table td {
+    padding: 10px 8px;
+    text-align: center;
+    border-bottom: 1px solid #dee2e6;
+    font-size: 13px;
+}
+
+.products-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.modal-overlay .modal-footer {
+    background: #f8f9fa;
+    padding: 15px 20px;
+    text-align: center;
+    border-top: 1px solid #dee2e6;
+}
+
+.modal-overlay .modal-footer .info-text {
+    color: #6c757d;
+    font-size: 14px;
+    margin: 0;
+}
+
+/* ===== イベントバッジ ===== */
+
+.event-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 12px;
+    font-size: 10px;
+    font-weight: 500;
+    margin: 1px 2px;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+
+.badge-purchase {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.badge-adjustment {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.badge-transfer {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.badge-purchase-large {
+    background: #28a745;
+    color: white;
+    font-weight: bold;
+}
+
+.badge-purchase-urgent {
+    background: #dc3545;
+    color: white;
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+/* ===== 備考欄の拡張 ===== */
+
+.remarks-cell {
+    max-width: 220px;
+    white-space: normal !important;
+    line-height: 1.4;
+    font-size: 12px;
+}
+
+.remarks-cell .event-badge {
+    display: inline-block;
+    margin: 1px;
+}
+
+/* ===== 残在庫数の表示強調 ===== */
+
+.remaining-stock-low {
+    background: #f8d7da !important;
+    color: #721c24 !important;
+    font-weight: 600;
+}
+
+.remaining-stock-zero {
+    background: #e2e3e5 !important;
+    color: #6c757d !important;
+    font-weight: 600;
+}
+
+.remaining-stock-warning {
+    color: #856404;
+    font-weight: 600;
+}
+
+/* ===== 伝票詳細セクション ===== */
+
+.slip-details-section {
+    border-top: 3px solid #dee2e6;
+}
+
+.slip-table {
+    font-size: 11px;
+    margin-bottom: 0;
+}
+
+.slip-table th {
+    background: #6c757d;
+    color: white;
+    padding: 8px 4px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.slip-table td {
+    padding: 6px 4px;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.slip-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* ===== 折りたたみヘッダーの改良 ===== */
+
+.table-header button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.table-header button:hover {
+    opacity: 0.8;
+}
+
+.table-header button .bi-chevron-down {
+    transition: transform 0.3s ease;
+    font-size: 16px;
+}
+
+.table-header button[aria-expanded="true"] .bi-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* ===== タブコンテンツの改良 ===== */
+
+.nav-tabs .nav-link {
+    color: #495057;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px 16px;
+}
+
+.nav-tabs .nav-link.active {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.tab-content {
+    border: 1px solid #dee2e6;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    background: white;
+}
+
+/* ===== 週別推移テーブルの改良 ===== */
+
+.analysis-table table th:nth-child(10) {
+    background: #28a745;
+}
+
+.analysis-table table th:nth-child(11) {
+    background: #6c757d;
+    min-width: 200px;
+}
+
+.stock-alert {
+    background: #ffebee;
+}
+
+/* ===== 数量表示の改良 ===== */
+
+.quantity-positive {
+    color: #28a745;
+    font-weight: 600;
+}
+
+.quantity-negative {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.quantity-zero {
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* ===== サマリー件数表示 ===== */
+
+.summary-counts {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-right: 15px;
+}
+
+.summary-counts span {
+    margin-right: 10px;
+}
+
+/* ===== レスポンシブ対応 ===== */
+
+@media (max-width: 768px) {
+    .analysis-table {
+        overflow-x: auto;
+    }
+    
+    .analysis-table th,
+    .analysis-table td {
+        padding: 8px 4px;
+        font-size: 11px;
+        white-space: nowrap;
+    }
+    
+    .modal-overlay .modal-content {
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .modal-overlay .modal-header {
+        padding: 15px;
+    }
+    
+    .modal-overlay .modal-body {
+        padding: 15px;
+    }
+}
+
+/* ===== 印刷時の調整 ===== */
+
+@media print {
+    .event-badge {
+        background: white !important;
+        border: 1px solid #000 !important;
+        color: #000 !important;
+    }
+    
+    .collapse:not(.show) {
+        display: block !important;
+    }
+    
+    .table-header button {
+        display: none;
+    }
+    
+    .nav-tabs {
+        display: none;
+    }
+    
+    .tab-content > .tab-pane {
+        display: block !important;
+        margin-bottom: 20px;
+    }
+}

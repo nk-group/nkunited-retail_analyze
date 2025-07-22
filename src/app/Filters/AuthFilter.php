@@ -10,16 +10,25 @@ class AuthFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
-        $session = session(); // グローバル関数 session() を使用
+        $session = session();
 
         if (!$session->get('isLoggedIn')) {
-            // ログインしていなければログインページへリダイレクト
+            // 現在のURLを元URL（intended URL）としてセッションに保存
+            $currentUrl = current_url();
+            $queryString = $request->getUri()->getQuery();
+            if ($queryString) {
+                $currentUrl .= '?' . $queryString;
+            }
+            
+            $session->set('intended_url', $currentUrl);
+            
+            // ログインページにリダイレクト
             return redirect()->to(site_url('login'));
         }
     }
 
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
-        // Afterリクエストで何かをする必要は今のところなし
+        // 後処理は不要
     }
 }

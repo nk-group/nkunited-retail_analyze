@@ -1,0 +1,6 @@
+CREATE DATABASE [NKUnited.Retail.Analyze]
+GO
+
+ALTER DATABASE [NKUnited.Retail.Analyze]
+SET RECOVERY SIMPLE;
+GO

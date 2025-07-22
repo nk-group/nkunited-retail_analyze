@@ -25,6 +25,14 @@ class ManufacturerModel extends Model
         'updated_at'
     ];
 
+    // 除外するメーカーコードの範囲を定義
+    private const EXCLUDE_RANGES = [
+        ['start' => '0001000', 'end' => '0001999'],
+        ['start' => '0100000', 'end' => '0199999'],
+    ];
+
+
+
     // 日付フィールド
     protected $useTimestamps = true;
     protected $dateFormat = 'datetime';
@@ -53,15 +61,32 @@ class ManufacturerModel extends Model
     protected $cleanValidationRules = true;
 
     /**
-     * メーカー検索（キーワード検索用）
+     * メーカー検索（キーワード検索用、除外範囲適用）
+     * @param string|null $keyword
+     * @param int $limit
+     * @param int $offset
+     * @return array
      */
-    public function searchByKeyword($keyword, $limit = 20)
+    public function searchMakersWithExclusion(?string $keyword, int $limit = 10, int $offset = 0): array
     {
-        return $this->like('manufacturer_code', $keyword)
-                   ->orLike('manufacturer_name', $keyword)
-                   ->orderBy('manufacturer_code')
-                   ->limit($limit)
-                   ->findAll();
+        $builder = $this->builder();
+
+        if (!empty($keyword)) {
+            $builder->groupStart()
+                ->like('manufacturer_code', $keyword)
+                ->orLike('manufacturer_name', $keyword)
+                ->groupEnd();
+        }
+
+        // 固定の除外範囲を適用
+        foreach (self::EXCLUDE_RANGES as $range) {
+            $builder->groupStart()
+                ->where('manufacturer_code <', $range['start'])
+                ->orWhere('manufacturer_code >', $range['end'])
+                ->groupEnd();
+        }
+
+        return $builder->orderBy('manufacturer_code')->limit($limit, $offset)->get()->getResultArray();
     }
 
     /**
@@ -80,5 +105,30 @@ class ManufacturerModel extends Model
         }
         
         return $builder->orderBy('manufacturer_code')->get()->getResultArray();
+    }
+
+    /**
+     * 除外範囲を適用した総件数を取得
+     * @param string|null $keyword
+     * @return int
+     */
+    public function countAllWithExclusion(?string $keyword): int
+    {
+        $builder = $this->builder();
+
+        if (!empty($keyword)) {
+            $builder->groupStart()
+                ->like('manufacturer_code', $keyword)
+                ->orLike('manufacturer_name', $keyword)
+                ->groupEnd();
+        }
+
+        foreach (self::EXCLUDE_RANGES as $range) {
+            $builder->groupStart()
+                ->where('manufacturer_code <', $range['start'])
+                ->orWhere('manufacturer_code >', $range['end'])
+                ->groupEnd();
+        }
+        return $builder->countAllResults();
     }
 }

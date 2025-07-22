@@ -28,6 +28,14 @@ $routes->get('/menu', 'Menu::index', ['filter' => 'auth']); // 'auth' フィル�
 $routes->get('/', 'Home::index');
 
 
+// === タスク一覧表示関連 (認証フィルターで保護) ===
+// グループ 'admin' を削除し、直接ルートを定義
+$routes->get('tasks', 'TaskViewController::index', [
+    'filter' => 'auth', 
+    'as' => 'task_list'
+]);
+
+
 
 // === マスタデータ取込関連 ===
 // マスタ取込画面表示 (認証フィルターで保護)
@@ -68,28 +76,62 @@ $routes->group('slips', ['filter' => 'auth'], static function ($routes) {
     $routes->post('import/transfer', 'SlipImportController::processTransferSlipImport', ['as' => 'transfer_slip_import_process']);
     
     // 調整伝票 (Adjustment Slip)
-    $routes->post('import/adjustment', 'SlipImportController::processAdjustmentSlipImport', ['as' => 'adjustment_slip_import_process']);    
+    $routes->post('import/adjustment', 'SlipImportController::processAdjustmentSlipImport', ['as' => 'adjustment_slip_import_process']);
+
+    // 発注伝票 (Order Slip)
+    $routes->post('import/order', 'SlipImportController::processOrderSlipImport', ['as' => 'order_slip_import_process']);
+
 });
+
 
 /**
  * 販売分析関連のルート設定
  */
-$routes->group('sales-analysis', function($routes) {
-    // メイン画面（集計指示画面）
+$routes->group('sales-analysis', ['filter' => 'auth'], function($routes) {
+    // メイン画面（分析メニュー）
     $routes->get('/', 'SalesAnalysisController::index');
     
-    // 集計実行
-    $routes->post('execute', 'SalesAnalysisController::execute');
+    // 集計結果 - 直接URL用（元URLリダイレクト対応）
+    $routes->get('quick-analysis', 'SalesAnalysisController::singleProductResult');
     
-    // 結果画面
-    $routes->get('result', 'SalesAnalysisController::result');
+    // 単品分析
+    $routes->group('single-product', function($routes) {
+        // 集計指示画面
+        $routes->get('/', 'SalesAnalysisController::singleProduct');
+        
+        // 集計実行
+        $routes->post('execute', 'SalesAnalysisController::executeSingleProduct');
+        
+        // 結果画面
+        $routes->get('result', 'SalesAnalysisController::singleProductResult');
+    });
     
-    // Ajax API: メーカー検索
+    // コード分析
+    $routes->group('code-analysis', function($routes) {
+        // 集計指示画面
+        $routes->get('/', 'SalesAnalysisController::codeAnalysis');
+        
+        // 集計実行
+        $routes->post('execute', 'SalesAnalysisController::executeCodeAnalysis');
+    });
+    
+    // 集計結果 - JANコード/SKUコード直接指定
+    //$routes->get('single-product/result', 'SalesAnalysisController::singleProductResult');
+    
+    // Ajax API（認証が必要）
     $routes->get('search-makers', 'SalesAnalysisController::searchMakers');
+    $routes->get('search-products', 'SalesAnalysisController::searchProducts');
+    $routes->get('get-target-products', 'SalesAnalysisController::getTargetProducts');
+    $routes->get('validate-product-number', 'SalesAnalysisController::validateProductNumber');
+    $routes->get('search-all-products', 'SalesAnalysisController::searchAllProducts');
+    $routes->get('validate-product-code', 'SalesAnalysisController::validateProductCode');
+    
+    $routes->post('generate-ai-data', 'SalesAnalysisController::generateAiDataAjax');
 
+    // 従来のルート
+    $routes->post('execute', 'SalesAnalysisController::execute');
+    $routes->get('result', 'SalesAnalysisController::result');
 });
-
-
 
 // === タスク一覧表示関連 (認証フィルターで保護) ===
 // マスタや伝票のグループ化パターンに合わせて 'tasks' グループを作成
@@ -99,12 +141,6 @@ $routes->group('sales-analysis', function($routes) {
 //     // $routes->match(['get', 'post'], 'list', 'TaskViewController::index', ['as' => 'task_list']);
 // });
 
-// === タスク一覧表示関連 (認証フィルターで保護) ===
-// グループ 'admin' を削除し、直接ルートを定義
-$routes->get('tasks', 'TaskViewController::index', [
-    'filter' => 'auth', 
-    'as' => 'task_list'
-]);
 
 
 //$routes->get('/dbtest', 'App\Controllers\DbTest::index');

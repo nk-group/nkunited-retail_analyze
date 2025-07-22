@@ -41,6 +41,12 @@ class SlipImportController extends BaseController
                 'flash_success_key' => 'success_adjustment_slip',
                 'flash_error_key' => 'error_adjustment_slip',
             ],
+            'order_slip' => [
+                'title' => '発注伝票',
+                'file_input_name' => 'slip_file',
+                'flash_success_key' => 'success_order_slip',
+                'flash_error_key' => 'error_order_slip',
+            ],
         ];
 
     }
@@ -91,6 +97,14 @@ class SlipImportController extends BaseController
     }
 
     /**
+     * 発注伝票ファイルのアップロード処理
+     */
+    public function processOrderSlipImport(): RedirectResponse
+    {
+        return $this->processSlipImport('order_slip');
+    }
+
+    /**
      * 汎用的な伝票ファイルアップロード処理メソッド
      * @param string $targetDataName 処理対象の伝票識別子 (例: 'purchase_slip')
      * @return \CodeIgniter\HTTP\RedirectResponse
@@ -124,12 +138,12 @@ class SlipImportController extends BaseController
                 'rules' => [
                     "uploaded[{$fileInputName}]",
                     "mime_in[{$fileInputName},application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv]", // Excel, CSV
-                    "max_size[{$fileInputName},5120]", // 5MB (MasterImportController は 20MB だったので、必要に応じて調整)
+                    "max_size[{$fileInputName},30720]",
                 ],
                 'errors' => [ 
                     'uploaded' => '{field}を選択してください。',
                     'mime_in'  => '{field}はExcelファイル (.xlsx, .xls) またはCSVファイル (.csv) である必要があります。',
-                    'max_size' => '{field}のサイズが大きすぎます。5MB以下のファイルを選択してください。', // 同上
+                    'max_size' => '{field}のサイズが大きすぎます。30MB以下のファイルを選択してください。',
                 ]
             ],
             // 'target_data_name' (hidden field) のバリデーションは必須ではないが、

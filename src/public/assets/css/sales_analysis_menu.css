@@ -1,0 +1,159 @@
+/*
+ * 販売分析メニュー専用スタイルシート
+ * (public/assets/css/sales_analysis_menu.css)
+ * 
+ * 使用ファイル: sales_analysis/index.php
+ */
+
+/* ===== 単品分析入口選択モーダル ===== */
+
+.sa-menu-modal .modal-content {
+    border-radius: 12px !important;
+    border: none !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+}
+
+.sa-menu-modal .modal-header {
+    border-bottom: 2px solid #e9ecef !important;
+    padding: 1.5rem !important;
+}
+
+.sa-menu-modal .modal-body {
+    padding: 2rem !important;
+}
+
+.sa-menu-modal .modal-footer {
+    border-top: 1px solid #e9ecef !important;
+    background: #f8f9fa !important;
+    padding: 1rem 2rem !important;
+}
+
+/* ===== 選択カード ===== */
+
+.sa-menu-selection-card {
+    border: 2px solid #e9ecef !important;
+    border-radius: 12px !important;
+    padding: 1.5rem !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    text-decoration: none !important;
+    color: inherit !important;
+    display: block !important;
+    height: 100% !important;
+    background: white !important;
+}
+
+.sa-menu-selection-card:hover {
+    border-color: #007bff !important;
+    background: #f8f9ff !important;
+    text-decoration: none !important;
+    color: inherit !important;
+    transform: translateY(-4px) !important;
+    box-shadow: 0 8px 24px rgba(0, 123, 255, 0.15) !important;
+}
+
+.sa-menu-selection-card:focus {
+    outline: none !important;
+    border-color: #007bff !important;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1) !important;
+    text-decoration: none !important;
+    color: inherit !important;
+}
+
+.sa-menu-selection-card:visited {
+    text-decoration: none !important;
+    color: inherit !important;
+}
+
+.sa-menu-selection-card:active {
+    text-decoration: none !important;
+    color: inherit !important;
+}
+
+.sa-menu-selection-icon {
+    font-size: 2.5rem !important;
+    margin-bottom: 1rem !important;
+}
+
+.sa-menu-selection-title {
+    font-weight: 600 !important;
+    margin-bottom: 0.75rem !important;
+    color: #333 !important;
+    text-decoration: none !important;
+}
+
+.sa-menu-selection-description {
+    line-height: 1.4 !important;
+    margin-bottom: 1rem !important;
+    color: #6c757d !important;
+    text-decoration: none !important;
+}
+
+.sa-menu-selection-badge {
+    margin-bottom: 0 !important;
+}
+
+/* Bootstrap のリンクスタイルを無効化 */
+a.sa-menu-selection-card,
+a.sa-menu-selection-card:hover,
+a.sa-menu-selection-card:focus,
+a.sa-menu-selection-card:active,
+a.sa-menu-selection-card:visited {
+    text-decoration: none !important;
+    color: inherit !important;
+}
+
+a.sa-menu-selection-card h6,
+a.sa-menu-selection-card p {
+    text-decoration: none !important;
+    color: inherit !important;
+}
+
+a.sa-menu-selection-card:hover h6 {
+    color: #333 !important;
+}
+
+a.sa-menu-selection-card:hover p {
+    color: #6c757d !important;
+}
+
+/* ===== レスポンシブ対応 ===== */
+
+@media (max-width: 768px) {
+    .sa-menu-modal .modal-body {
+        padding: 1.5rem !important;
+    }
+    
+    .sa-menu-selection-card {
+        padding: 1rem !important;
+        margin-bottom: 1rem !important;
+    }
+    
+    .sa-menu-selection-icon {
+        font-size: 2rem !important;
+    }
+}
+
+@media (max-width: 576px) {
+    .sa-menu-modal .modal-header,
+    .sa-menu-modal .modal-body {
+        padding: 1rem !important;
+    }
+    
+    .sa-menu-selection-card {
+        padding: 0.75rem !important;
+    }
+    
+    .sa-menu-selection-icon {
+        font-size: 1.75rem !important;
+    }
+}
+
+/* ===== 印刷時の調整 ===== */
+
+@media print {
+    .sa-menu-modal,
+    .modal-backdrop {
+        display: none !important;
+    }
+}
