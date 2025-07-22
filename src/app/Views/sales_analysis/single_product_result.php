@@ -662,10 +662,11 @@ const productInfo = {
 };
 
 /**
- * ファイル名の無効文字を除去
+ * ファイル名の無効文字を除去（日本語対応版）
  */
 function sanitizeFileName(name) {
-    return name.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_').replace(/[^\w\-_.()]/g, '');
+    // ファイル名に使用できない文字のみ削除、日本語は保持
+    return name.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_');
 }
 
 /**
@@ -708,12 +709,20 @@ function captureScreen() {
         
         document.body.appendChild(captureContainer);
 
-        // html2canvas のオプション設定
+        // CSS強制適用で色の正確な再現（シンプル版）
+        const headerElement = captureContainer.querySelector('.header-section');
+        if (headerElement) {
+            headerElement.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            headerElement.style.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        }
+
+        // html2canvas のオプション設定（安全な設定に戻す）
         const options = {
             backgroundColor: '#ffffff',
             scale: 1,
             useCORS: true,
             allowTaint: false,
+            logging: false,
             width: 1400,
             height: captureContainer.scrollHeight + 40,
             scrollX: 0,
