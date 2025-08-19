@@ -27,7 +27,7 @@ class ManufacturerModel extends Model
 
     // 除外するメーカーコードの範囲を定義
     private const EXCLUDE_RANGES = [
-        ['start' => '0001000', 'end' => '0001999'],
+        //['start' => '0001000', 'end' => '0001999'],
         ['start' => '0100000', 'end' => '0199999'],
     ];
 
