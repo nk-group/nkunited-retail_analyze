@@ -5,33 +5,33 @@ use App\Libraries\BaseImportService;
 use App\Libraries\DataTransformer;
 
 /**
- * 調整伝票データのExcelファイル取り込み処理を行うサービスクラスです。
- * BaseImportServiceを継承し、調整伝票固有のデータマッピングとDB保存ロジックを担当します。
+ * 商品振替伝票データのExcelファイル取り込み処理を行うサービスクラスです。
+ * BaseImportServiceを継承し、商品振替伝票固有のデータマッピングとDB保存ロジックを担当します。
  */
-class AdjustmentSlipImportService extends BaseImportService
+class ProductTransferSlipImportService extends BaseImportService
 {
-    private const TARGET_TABLE = 'adjustment_slip';
-    private const EXPECTED_CSV_COLUMNS = 29; // A〜AC列
+    private const TARGET_TABLE = 'product_transfer_slip';
+    private const EXPECTED_CSV_COLUMNS = 27; // Excelファイルから確認した列数
 
     /**
-     * AdjustmentSlipImportService constructor.
+     * ProductTransferSlipImportService constructor.
      */
     public function __construct()
     {
         parent::__construct();
-        $this->serviceNameForLogging = 'AdjustmentSlipImportService';
+        $this->serviceNameForLogging = 'ProductTransferSlipImportService';
     }
 
     /**
-     * 調整伝票のExcelファイルを処理し、データベースに取り込みます。
+     * 商品振替伝票のExcelファイルを処理し、データベースに取り込みます。
      *
      * @param string $filePath サーバーに保存されたファイルのフルパス
      * @return array 処理結果の連想配列
      */
     public function processFile(string $filePath): array
     {
-        $this->logger->info("{$this->serviceNameForLogging}: Processing adjustment slip file: " . basename($filePath));
-        
+        $this->logger->info("{$this->serviceNameForLogging}: Processing product transfer slip file: " . basename($filePath));
+
         $errorMessages = [];
         $importedCount = 0;
         $updatedCount = 0;
@@ -45,25 +45,25 @@ class AdjustmentSlipImportService extends BaseImportService
 
         try {
             $worksheet = $this->loadAndGetWorksheet($filePath, null, $initializationError);
+
             if ($worksheet === null) {
                 $finalMessage = $initializationError ?: "Excelファイルのロードに失敗しました。";
                 $this->logger->error("[{$this->serviceNameForLogging}] " . $finalMessage);
                 return $this->generateResult(false, $finalMessage, 0,0,0,0,[$finalMessage]);
             }
 
-            // 調整伝票の期待ヘッダー
             $expectedMainHeaders = [
-                '入力番号',     // Excel列1
-                '行',         // Excel列2
-                '伝票番号',     // Excel列3
-                '店舗',       // Excel列4
-                '店舗名',     // Excel列5 
-                '調整区分',     // Excel列6
-                '調整日付',     // Excel列7
-                '調整理由',     // Excel列8
-                '調整理由名',   // Excel列9
-                '担当者',     // Excel列10
-                '担当者名',     // Excel列11
+                '入力番号',      // Excel列1 (A)
+                '調整番号',      // Excel列2 (B) - 実際は振替番号として使用
+                '行',           // Excel列3 (C)
+                '店舗',         // Excel列4 (D)
+                '店舗名',       // Excel列5 (E)
+                '振替区分',     // Excel列6 (F)
+                '振替日付',     // Excel列7 (G)
+                '振替理由',     // Excel列8 (H)
+                '振替理由名',   // Excel列9 (I)
+                '担当者',       // Excel列10 (J)
+                '担当者名',     // Excel列11 (K)
             ]; 
             
             $rowIterator = $this->getValidatedRowIterator(
@@ -79,7 +79,8 @@ class AdjustmentSlipImportService extends BaseImportService
                 
                 if ($worksheet !== null) {
                     $spreadsheetForCleanup = $worksheet->getParent() ?? null;
-                    $this->cleanupSpreadsheetObjects($spreadsheetForCleanup, $worksheet); 
+                    $nullReader = null; 
+                    $this->cleanupSpreadsheetObjects($spreadsheetForCleanup, $worksheet, $nullReader); 
                     $worksheet = null; 
                 }
                 return $this->generateResult(false, $finalMessage,0,0,0,0,[$finalMessage]);
@@ -91,6 +92,7 @@ class AdjustmentSlipImportService extends BaseImportService
             while ($rowIterator->valid()) {
                 $excelRowObject = $rowIterator->current(); 
                 $currentRowNumInFile = $excelRowObject->getRowIndex();
+
                 $cellIterator = $excelRowObject->getCellIterator();
                 $cellIterator->setIterateOnlyExistingCells(false);
                 $rowData = array_fill(0, self::EXPECTED_CSV_COLUMNS, null); 
@@ -107,9 +109,9 @@ class AdjustmentSlipImportService extends BaseImportService
                 }
                 $processedDataRows++;
 
-                // 主キー項目の検証
                 $inputNumberRaw = $rowData[0] ?? null;
-                $lineNumberRaw  = $rowData[1] ?? null;
+                $lineNumberRaw  = $rowData[2] ?? null;  // 行は列3(C)
+
                 $inputNumber = DataTransformer::excelToIntOrNull($inputNumberRaw);
                 $lineNumber  = DataTransformer::excelToIntOrNull($lineNumberRaw);
 
@@ -121,19 +123,31 @@ class AdjustmentSlipImportService extends BaseImportService
                     continue;
                 }
 
-                // その他必須項目の検証
-                $slipNumberRaw = $rowData[2] ?? null;
-                $storeCodeRaw = $rowData[3] ?? null;
-                $adjustmentDateRaw = $rowData[6] ?? null;
+                $transferSlipNumberRaw = $rowData[1] ?? null;  // 調整番号を振替伝票番号として使用
+                $storeCodeRaw          = $rowData[3] ?? null;  // 店舗
+                $transferTypeRaw       = $rowData[5] ?? null;  // 振替区分
+                $transferDateRaw       = $rowData[6] ?? null;  // 振替日付
 
-                $slipNumber = DataTransformer::excelToIntOrNull($slipNumberRaw);
-                $storeCode = DataTransformer::excelToStringOrEmpty($storeCodeRaw);
-                $adjustmentDate = DataTransformer::excelToDbDate($adjustmentDateRaw);    
+                $transferSlipNumber = DataTransformer::excelToIntOrNull($transferSlipNumberRaw);
+                $storeCode         = DataTransformer::excelToStringOrEmpty($storeCodeRaw);
+                $transferType      = DataTransformer::excelToStringOrEmpty($transferTypeRaw);
+                $transferDate      = DataTransformer::excelToDbDate($transferDateRaw);
+                
+                // 振替区分を正規化（振替元→OUT、振替先→IN）
+                $normalizedTransferType = '';
+                if (strpos($transferType, '振替元') !== false) {
+                    $normalizedTransferType = 'OUT';
+                } elseif (strpos($transferType, '振替先') !== false) {
+                    $normalizedTransferType = 'IN';
+                } else {
+                    $normalizedTransferType = $transferType; // そのまま保持
+                }
                 
                 $currentRequiredErrors = [];
-                if ($slipNumber === null) $currentRequiredErrors[] = "伝票番号(列3)";
-                if (empty($storeCode)) $currentRequiredErrors[] = "店舗コード(列4)";
-                if (empty($adjustmentDate)) $currentRequiredErrors[] = "調整日付(列7)";
+                if ($transferSlipNumber === null) $currentRequiredErrors[] = "振替伝票番号(列2)";
+                if (empty($storeCode))           $currentRequiredErrors[] = "店舗コード(列4)";
+                if (empty($normalizedTransferType)) $currentRequiredErrors[] = "振替区分(列6)";
+                if (empty($transferDate))        $currentRequiredErrors[] = "振替日付(列7)";
 
                 if (!empty($currentRequiredErrors)) {
                     $errorMessages[] = "{$currentRowNumInFile}行目 (PK: {$inputNumber}-{$lineNumber}): 必須項目 (" . implode(', ', $currentRequiredErrors) . ") 不足によりスキップ。";
@@ -143,26 +157,23 @@ class AdjustmentSlipImportService extends BaseImportService
                     continue;
                 }
 
-                // 日時結合処理
-                $updatedAt = DataTransformer::combineExcelDateAndTimeToDbDateTime(
-                    $rowData[27] ?? null, // 更新日付 (AB列)
-                    $rowData[28] ?? null, // 更新時間 (AC列)
-                    true 
-                );
+                // 振替ペアIDの生成（同一振替伝票番号内で振替元・振替先を関連付ける）
+                // 簡易的に伝票番号をベースとした値を使用
+                $transferPairId = $transferSlipNumber;
 
-                // データベース保存用配列の作成
                 $dataForDb = [
                     'input_number'              => $inputNumber,
                     'line_number'               => $lineNumber,
-                    'slip_number'               => $slipNumber,
+                    'transfer_slip_number'      => $transferSlipNumber,
                     'store_code'                => $storeCode,
                     'store_name'                => DataTransformer::excelToStringOrEmpty($rowData[4] ?? null),
-                    'adjustment_type'           => DataTransformer::excelToStringOrEmpty($rowData[5] ?? null),
-                    'adjustment_date'           => $adjustmentDate,
-                    'adjustment_reason_code'    => DataTransformer::excelToStringOrEmpty($rowData[7] ?? null),
-                    'adjustment_reason_name'    => DataTransformer::excelToStringOrEmpty($rowData[8] ?? null),
+                    'transfer_type'             => $normalizedTransferType,
+                    'transfer_date'             => $transferDate,
+                    'transfer_reason_code'      => DataTransformer::excelToStringOrEmpty($rowData[7] ?? null),
+                    'transfer_reason_name'      => DataTransformer::excelToStringOrEmpty($rowData[8] ?? null),
                     'staff_code'                => DataTransformer::excelToStringOrEmpty($rowData[9] ?? null),
                     'staff_name'                => DataTransformer::excelToStringOrEmpty($rowData[10] ?? null),
+                    'transfer_pair_id'          => $transferPairId,
                     'jan_code'                  => DataTransformer::excelToStringOrEmpty($rowData[11] ?? null),
                     'sku_code'                  => DataTransformer::excelToStringOrEmpty($rowData[12] ?? null),
                     'manufacturer_code'         => DataTransformer::excelToStringOrEmpty($rowData[13] ?? null),
@@ -171,18 +182,17 @@ class AdjustmentSlipImportService extends BaseImportService
                     'product_name'              => DataTransformer::excelToStringOrEmpty($rowData[16] ?? null),
                     'manufacturer_color_code'   => DataTransformer::excelToStringOrEmpty($rowData[17] ?? null),
                     'color_code'                => DataTransformer::excelToStringOrEmpty($rowData[18] ?? null),
-                    'color_name'                => DataTransformer::excelToStringOrEmpty($rowData[19] ?? null),
+                    'color_name'                => DataTransformer::excelToStringOrEmpty($rowData[19] ?? null), // カラー名列（空列の可能性有り）
                     'size_code'                 => DataTransformer::excelToStringOrEmpty($rowData[20] ?? null),
-                    'size_name'                 => DataTransformer::excelToStringOrEmpty($rowData[21] ?? null),
+                    'size_name'                 => DataTransformer::excelToStringOrEmpty($rowData[21] ?? null), // サイズ名列（空列の可能性有り）
                     'cost_price'                => DataTransformer::excelToDecimalOrNull($rowData[22] ?? null, 2),
                     'selling_price'             => DataTransformer::excelToDecimalOrNull($rowData[23] ?? null, 2),
-                    'adjustment_quantity'       => DataTransformer::excelToIntOrNull($rowData[24] ?? null),
+                    'transfer_quantity'         => DataTransformer::excelToIntOrNull($rowData[24] ?? null),
                     'cost_amount'               => DataTransformer::excelToDecimalOrNull($rowData[25] ?? null, 2),
                     'selling_amount'            => DataTransformer::excelToDecimalOrNull($rowData[26] ?? null, 2),
-                    'updated_at'                => $updatedAt,
+                    'updated_at'                => date('Y-m-d H:i:s'), // 商品振替では更新日時を現在時刻に設定
                 ];
 
-                // 既存データの確認
                 $existing = $this->db->table(self::TARGET_TABLE)
                                    ->where('input_number', $dataForDb['input_number'])
                                    ->where('line_number', $dataForDb['line_number'])
@@ -190,6 +200,7 @@ class AdjustmentSlipImportService extends BaseImportService
                 
                 $this->db->transBegin();
                 $operationSuccess = false;
+
                 if ($existing) { 
                     if ($this->executeUpdate(self::TARGET_TABLE, $dataForDb, ['input_number' => $dataForDb['input_number'], 'line_number' => $dataForDb['line_number']])) {
                         if ($this->db->transStatus()) {
@@ -252,7 +263,6 @@ class AdjustmentSlipImportService extends BaseImportService
                 $rowIterator->next();
             } 
 
-            // 最終バッチの処理
             if (!empty($currentBatchDataForInsert)) {
                 $this->db->transBegin();
                 $tempImported = 0; $tempSkipped = 0; $tempErrors = [];
@@ -274,9 +284,7 @@ class AdjustmentSlipImportService extends BaseImportService
                 }
             }
 
-            // 結果メッセージの生成
             $detailedCountMessage = "全{$processedDataRows}データ行を処理。新規{$importedCount}件、更新{$updatedCount}件。{$skippedCount}件スキップ。";
-            
             if ($processedDataRows === 0) {
                 if ($highestRowForLoop <= $this->headerRowNumber) {
                     $finalMessage = "ファイルに処理対象データがありませんでした。";

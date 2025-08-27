@@ -5,7 +5,7 @@ use App\Libraries\BaseImportService;
 use App\Libraries\DataTransformer;
 
 /**
- * 移動伝票データのExcel/CSVファイル取り込み処理を行うサービスクラスです。
+ * 移動伝票データのExcelファイル取り込み処理を行うサービスクラスです。
  * BaseImportServiceを継承し、移動伝票固有のデータマッピングとDB保存ロジックを担当します。
  */
 class TransferSlipImportService extends BaseImportService
@@ -23,7 +23,7 @@ class TransferSlipImportService extends BaseImportService
     }
 
     /**
-     * 移動伝票のExcel/CSVファイルを処理し、データベースに取り込みます。
+     * 移動伝票のExcelファイルを処理し、データベースに取り込みます。
      *
      * @param string $filePath サーバーに保存されたファイルのフルパス
      * @return array 処理結果の連想配列
@@ -46,7 +46,7 @@ class TransferSlipImportService extends BaseImportService
         try {
             $worksheet = $this->loadAndGetWorksheet($filePath, null, $initializationError);
             if ($worksheet === null) {
-                $finalMessage = $initializationError ?: "Excel/CSVファイルのロードに失敗しました。";
+                $finalMessage = $initializationError ?: "Excelファイルのロードに失敗しました。";
                 $this->logger->error("[{$this->serviceNameForLogging}] " . $finalMessage);
                 return $this->generateResult(false, $finalMessage, 0,0,0,0,[$finalMessage]);
             }
@@ -309,7 +309,7 @@ class TransferSlipImportService extends BaseImportService
         } catch (\PhpOffice\PhpSpreadsheet\Exception $e) {
             if ($this->db->connID) { $this->db->transRollback(); }
             $this->logger->error("[{$this->serviceNameForLogging}] PHPSpreadsheetライブラリエラー: " . $e->getMessage(), ['exception' => $e]);
-            return $this->generateResult(false, "Excel/CSV処理ライブラリでエラーが発生: " . $e->getMessage(), $importedCount, $updatedCount, $skippedCount, $processedDataRows, [$e->getMessage()]);
+            return $this->generateResult(false, "Excel処理ライブラリでエラーが発生: " . $e->getMessage(), $importedCount, $updatedCount, $skippedCount, $processedDataRows, [$e->getMessage()]);
         } catch (\Throwable $e) {
             if ($this->db->connID) { $this->db->transRollback(); }
             $this->logger->critical("[{$this->serviceNameForLogging}] 予期せぬ一般エラー: " . $e->getMessage(), ['exception' => $e]);

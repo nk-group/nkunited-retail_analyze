@@ -125,14 +125,14 @@
 | 仕入先コード | supplier_code | nvarchar(50) | NOT NULL | - | 仕入先識別コード |
 | 仕入先名 | supplier_name | nvarchar(150) | NULL | - | 仕入先名称 |
 | 仕入区分 | purchase_type | nvarchar(50) | NULL | - | 仕入の種類 |
-| 支払区分 | payable_type | nvarchar(50) | NULL | - | 支払方法区分 |
-| 仕入費用区分 | purchase_expense_type | nvarchar(50) | NULL | - | 費用処理区分 |
+| 買掛区分 | payable_type | nvarchar(50) | NULL | - | 支払区分 |
+| 仕入経費区分 | purchase_expense_type | nvarchar(50) | NULL | - | 経費区分 |
 | 仕入日 | purchase_date | date | NOT NULL | - | 仕入実行日 |
-| 支払予定日 | payable_date | date | NULL | - | 支払期日 |
+| 買掛日 | payable_date | date | NULL | - | 支払予定日 |
 | 担当者コード | staff_code | nvarchar(20) | NULL | - | 処理担当者コード |
 | 担当者名 | staff_name | nvarchar(100) | NULL | - | 処理担当者名 |
 | 発注番号 | order_number | int | NULL | - | 関連発注番号 |
-| 発注行番号 | order_line | smallint | NULL | - | 発注行識別番号 |
+| 発注行 | order_line | smallint | NULL | - | 関連発注行 |
 | JANコード | jan_code | nvarchar(50) | NULL | - | 商品JANコード |
 | SKUコード | sku_code | nvarchar(50) | NULL | - | 商品SKUコード |
 | メーカーコード | manufacturer_code | nvarchar(8) | NULL | - | メーカー識別コード |
@@ -144,10 +144,10 @@
 | カラー名 | color_name | nvarchar(100) | NULL | - | 色名称 |
 | サイズコード | size_code | nvarchar(50) | NULL | - | サイズ識別コード |
 | サイズ名 | size_name | nvarchar(100) | NULL | - | サイズ名称 |
-| 仕入単価（税抜） | cost_price | decimal(12,2) | NULL | - | 仕入単価（税抜） |
-| 仕入単価（税込） | cost_price_tax_included | decimal(12,2) | NULL | - | 仕入単価（税込） |
-| 売価（税抜） | selling_price | decimal(12,2) | NULL | - | 定価（税抜） |
-| 売価（税込） | selling_price_tax_included | decimal(12,2) | NULL | - | 定価（税込） |
+| 原価（税抜） | cost_price | decimal(12,2) | NULL | - | 仕入単価（税抜） |
+| 原価（税込） | cost_price_tax_included | decimal(12,2) | NULL | - | 仕入単価（税込） |
+| 売価（税抜） | selling_price | decimal(12,2) | NULL | - | 商品売価（税抜） |
+| 売価（税込） | selling_price_tax_included | decimal(12,2) | NULL | - | 商品売価（税込） |
 | 仕入数量 | purchase_quantity | int | NULL | - | 仕入数量（負数は返品） |
 | 仕入金額（税抜） | purchase_amount | decimal(12,2) | NULL | - | 仕入金額（税抜） |
 | 仕入金額（税込） | purchase_amount_tax_included | decimal(12,2) | NULL | - | 仕入金額（税込） |
@@ -334,6 +334,65 @@
 
 ---
 
+## 9. product_transfer_slip（商品振替伝票テーブル）
+
+### テーブル概要
+商品振替伝票データを格納するテーブル。生産伝票に近い性質を持ち、振替元の在庫を減らして振替先の商品の在庫を増やす処理を行単位で管理する。
+
+### カラム定義
+
+| 論理名 | 物理名 | データ型 | NULL | デフォルト値 | 備考 |
+|--------|--------|----------|------|-------------|------|
+| 入力番号 | input_number | int | NOT NULL | - | 主キー（複合）|
+| 行番号 | line_number | smallint | NOT NULL | - | 主キー（複合）|
+| 振替伝票番号 | transfer_slip_number | int | NOT NULL | - | 振替伝票識別番号 |
+| 店舗コード | store_code | nvarchar(20) | NOT NULL | - | 振替実行店舗コード |
+| 店舗名 | store_name | nvarchar(100) | NULL | - | 振替実行店舗名 |
+| 振替区分 | transfer_type | nvarchar(50) | NOT NULL | - | 振替の種別（OUT:振替元、IN:振替先） |
+| 振替日付 | transfer_date | date | NOT NULL | - | 振替実行日 |
+| 振替理由コード | transfer_reason_code | nvarchar(20) | NULL | - | 振替理由の識別コード |
+| 振替理由名 | transfer_reason_name | nvarchar(100) | NULL | - | 振替理由の名称 |
+| 担当者コード | staff_code | nvarchar(20) | NULL | - | 処理担当者コード |
+| 担当者名 | staff_name | nvarchar(100) | NULL | - | 処理担当者名 |
+| 振替ペアID | transfer_pair_id | int | NULL | - | 振替元・振替先の関連識別子 |
+| JANコード | jan_code | nvarchar(50) | NULL | - | 商品JANコード |
+| SKUコード | sku_code | nvarchar(50) | NULL | - | 商品SKUコード |
+| メーカーコード | manufacturer_code | nvarchar(8) | NULL | - | メーカー識別コード |
+| 部門コード | department_code | nvarchar(50) | NULL | - | 商品部門コード |
+| 品番 | product_number | nvarchar(50) | NULL | - | メーカー品番 |
+| 商品名 | product_name | nvarchar(200) | NULL | - | 商品名称 |
+| メーカーカラーコード | manufacturer_color_code | nvarchar(20) | NULL | - | メーカー色コード |
+| カラーコード | color_code | nvarchar(50) | NULL | - | 標準色コード |
+| カラー名 | color_name | nvarchar(100) | NULL | - | 色名称 |
+| サイズコード | size_code | nvarchar(50) | NULL | - | サイズ識別コード |
+| サイズ名 | size_name | nvarchar(100) | NULL | - | サイズ名称 |
+| 原価 | cost_price | decimal(12,2) | NULL | - | 商品原価 |
+| 売価 | selling_price | decimal(12,2) | NULL | - | 商品売価 |
+| 振替数量 | transfer_quantity | int | NULL | - | 振替数量（OUT:負数で減少、IN:正数で増加） |
+| 原価金額 | cost_amount | decimal(12,2) | NULL | - | 原価ベース金額 |
+| 売価金額 | selling_amount | decimal(12,2) | NULL | - | 売価ベース金額 |
+| 更新日時 | updated_at | datetime2(3) | NULL | - | 統合更新日時 |
+
+### 制約
+- **主キー**: (input_number, line_number)
+
+### インデックス
+- IX_product_transfer_slip_transfer_slip_number
+- IX_product_transfer_slip_store_code
+- IX_product_transfer_slip_transfer_date
+- IX_product_transfer_slip_transfer_pair_id
+- IX_product_transfer_slip_jan_code
+
+### 業務ルール
+1. **振替区分**:
+   - `OUT`: 振替元商品（在庫減少）
+   - `IN`: 振替先商品（在庫増加）
+2. **振替ペアID**: 同一の振替処理における振替元・振替先の関連を示す
+3. **数量の扱い**: 振替数量は振替区分により符号が決定（OUT:負数、IN:正数）
+4. **振替元・振替先**: 通常は同一伝票内で対となる行が存在
+
+---
+
 ## テーブル関連図
 
 ```
@@ -349,7 +408,9 @@ manufacturers (メーカーマスタ)
 │   │
 │   ├── adjustment_slip (調整伝票) ※jan_codeで関連
 │   │
-│   └── order_slip (発注伝票) ※jan_codeで関連
+│   ├── order_slip (発注伝票) ※jan_codeで関連
+│   │
+│   └── product_transfer_slip (商品振替伝票) ※jan_codeで関連
 │
 └── import_tasks (取込タスク管理) ※処理対象データとして関連
 ```
@@ -361,6 +422,7 @@ manufacturers (メーカーマスタ)
    - `sales_quantity`: 負数は返品を表す
    - `transfer_quantity`: 負数は返品・戻りを表す
    - `adjustment_quantity`: 正数で増加、負数で減少を表す
+   - `transfer_quantity`（商品振替）: OUT時は負数、IN時は正数、在庫集計は単純合計
 
 2. **日時項目の統合**
    - 各伝票テーブルの`updated_at`は、元の更新日付と更新時間を統合した日時情報
@@ -369,7 +431,12 @@ manufacturers (メーカーマスタ)
    - `products`テーブルでは`deletion_type`と`deletion_scheduled_date`で削除管理を行う
 
 4. **主キー構成**
-   - 伝票系テーブルは`input_number`と`line_number`の複合主キー
+   - 伝票系テーブルは`input_number`と`line_number`の複合主キー（発注伝票は`order_number`と`line_number`）
 
 5. **文字エンコーディング**
    - nvarchar型を使用してUnicode対応
+
+6. **商品振替伝票の特徴**
+   - 生産伝票に近い性質で、商品の形態変更を伴う在庫移動を管理
+   - 振替元（OUT）と振替先（IN）の関係は`transfer_pair_id`で関連付け
+   - 同一店舗内での商品振替を基本とする

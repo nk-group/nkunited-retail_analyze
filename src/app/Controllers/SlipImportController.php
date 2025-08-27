@@ -3,7 +3,7 @@
 namespace App\Controllers;
 
 use Config\Services;
-use CodeIgniter\HTTP\RedirectResponse; // RedirectResponse の型ヒントのため
+use CodeIgniter\HTTP\RedirectResponse;
 
 class SlipImportController extends BaseController
 {
@@ -46,6 +46,13 @@ class SlipImportController extends BaseController
                 'file_input_name' => 'slip_file',
                 'flash_success_key' => 'success_order_slip',
                 'flash_error_key' => 'error_order_slip',
+            ],
+            // 商品振替伝票を追加
+            'product_transfer_slip' => [
+                'title' => '商品振替伝票',
+                'file_input_name' => 'slip_file',
+                'flash_success_key' => 'success_product_transfer_slip',
+                'flash_error_key' => 'error_product_transfer_slip',
             ],
         ];
 
@@ -105,6 +112,14 @@ class SlipImportController extends BaseController
     }
 
     /**
+     * 商品振替伝票ファイルのアップロード処理
+     */
+    public function processProductTransferSlipImport(): RedirectResponse
+    {
+        return $this->processSlipImport('product_transfer_slip');
+    }
+
+    /**
      * 汎用的な伝票ファイルアップロード処理メソッド
      * @param string $targetDataName 処理対象の伝票識別子 (例: 'purchase_slip')
      * @return \CodeIgniter\HTTP\RedirectResponse
@@ -131,23 +146,25 @@ class SlipImportController extends BaseController
         
         $fileInputName = $slipInfo['file_input_name']; // 'slip_file'
 
+        // 全伝票Excel専用（CSV非対応）
+        $mimeTypes = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel";
+        $mimeErrorMessage = '{field}はExcelファイル (.xlsx または .xls) である必要があります。';
+
         // バリデーションルールの設定
         $validationRule = [
             $fileInputName => [
                 'label' => esc($slipInfo['title']) . 'ファイル',
                 'rules' => [
                     "uploaded[{$fileInputName}]",
-                    "mime_in[{$fileInputName},application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv]", // Excel, CSV
+                    "mime_in[{$fileInputName},{$mimeTypes}]",
                     "max_size[{$fileInputName},30720]",
                 ],
                 'errors' => [ 
                     'uploaded' => '{field}を選択してください。',
-                    'mime_in'  => '{field}はExcelファイル (.xlsx, .xls) またはCSVファイル (.csv) である必要があります。',
+                    'mime_in'  => $mimeErrorMessage,
                     'max_size' => '{field}のサイズが大きすぎます。30MB以下のファイルを選択してください。',
                 ]
             ],
-            // 'target_data_name' (hidden field) のバリデーションは必須ではないが、
-            // もし追加するなら 'required|in_list[...]' のようにする
         ];
 
         if (!$this->validate($validationRule)) {

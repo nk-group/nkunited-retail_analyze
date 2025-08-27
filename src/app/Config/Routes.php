@@ -81,6 +81,9 @@ $routes->group('slips', ['filter' => 'auth'], static function ($routes) {
     // 発注伝票 (Order Slip)
     $routes->post('import/order', 'SlipImportController::processOrderSlipImport', ['as' => 'order_slip_import_process']);
 
+    // 商品振替伝票 (Product Transfer Slip)
+    $routes->post('import/product-transfer', 'SlipImportController::processProductTransferSlipImport', ['as' => 'product_transfer_slip_import_process']);
+
 });
 
 

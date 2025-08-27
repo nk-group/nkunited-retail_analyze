@@ -96,5 +96,19 @@ retail_analyze/
 │        ├── ddl/                # DDL
 │        └── script/             # Stored,Functionなど
 ```
+※注意：日本語フォルダが含まれると正しく動作しないので注意してください。
+
 
 ---
+
+## **その他ツール**
+
+### **IIS URL Rewrite Module**
+CodeIgniter4のルーティングをIIS上で正しく機能させるために必要です。
+- **インストーラー**: `rewrite_amd64_ja-JP.msi`
+- **ダウンロードサイト**: [IIS.net](https://www.iis.net/downloads/microsoft/url-rewrite)
+
+### **Composer**
+PHPの依存関係管理ツールです。
+- **インストーラー**: `Composer-Setup.exe`
+- **ダウンロードサイト**: [GetComposer.org](https://getcomposer.org/download/)

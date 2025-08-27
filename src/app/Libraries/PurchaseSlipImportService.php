@@ -6,7 +6,7 @@ use App\Libraries\DataTransformer;
 // use App\Filters\PurchaseSlipReadFilter; // ReadFilterは現状使用しない方針
 
 /**
- * 仕入伝票データのExcel/CSVファイル取り込み処理を行うサービスクラスです。
+ * 仕入伝票データのExcelファイル取り込み処理を行うサービスクラスです。
  * BaseImportServiceを継承し、仕入伝票固有のデータマッピングとDB保存ロジックを担当します。
  */
 class PurchaseSlipImportService extends BaseImportService
@@ -24,7 +24,7 @@ class PurchaseSlipImportService extends BaseImportService
     }
 
     /**
-     * 仕入伝票のExcel/CSVファイルを処理し、データベースに取り込みます。
+     * 仕入伝票のExcelファイルを処理し、データベースに取り込みます。
      *
      * @param string $filePath サーバーに保存されたファイルのフルパス
      * @return array 処理結果の連想配列
@@ -48,7 +48,7 @@ class PurchaseSlipImportService extends BaseImportService
             $worksheet = $this->loadAndGetWorksheet($filePath, null, $initializationError);
 
             if ($worksheet === null) {
-                $finalMessage = $initializationError ?: "Excel/CSVファイルのロードに失敗しました。";
+                $finalMessage = $initializationError ?: "Excelファイルのロードに失敗しました。";
                 $this->logger->error("[{$this->serviceNameForLogging}] " . $finalMessage);
                 return $this->generateResult(false, $finalMessage, 0,0,0,0,[$finalMessage]);
             }
@@ -313,7 +313,7 @@ class PurchaseSlipImportService extends BaseImportService
         } catch (\PhpOffice\PhpSpreadsheet\Exception $e) {
             if ($this->db->connID) { $this->db->transRollback(); } // 修正: getTransDepth() 呼び出し削除
             $this->logger->error("[{$this->serviceNameForLogging}] PHPSpreadsheetライブラリエラー: " . $e->getMessage(), ['exception' => $e]);
-            return $this->generateResult(false, "Excel/CSV処理ライブラリでエラーが発生: " . $e->getMessage(), $importedCount, $updatedCount, $skippedCount, $processedDataRows, [$e->getMessage()]);
+            return $this->generateResult(false, "Excel処理ライブラリでエラーが発生: " . $e->getMessage(), $importedCount, $updatedCount, $skippedCount, $processedDataRows, [$e->getMessage()]);
         } catch (\Throwable $e) {
             if ($this->db->connID) { $this->db->transRollback(); } // 修正: getTransDepth() 呼び出し削除
             $this->logger->critical("[{$this->serviceNameForLogging}] 予期せぬ一般エラー: " . $e->getMessage(), ['exception' => $e]);

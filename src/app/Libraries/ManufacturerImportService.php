@@ -47,7 +47,7 @@ class ManufacturerImportService extends BaseImportService
             $readFilter = null;
             $worksheet = $this->loadAndGetWorksheet($filePath, $readFilter, $initializationError);
             if ($worksheet === null) {
-                $finalMessage = $initializationError ?: "Excel/CSVファイルのロードに失敗しました。";
+                $finalMessage = $initializationError ?: "Excelファイルのロードに失敗しました。";
                 $this->logger->error("[{$this->serviceNameForLogging}] " . $finalMessage);
                 return $this->generateResult(false, $finalMessage, 0,0,0,0,[$finalMessage]);
             }
@@ -240,7 +240,7 @@ class ManufacturerImportService extends BaseImportService
         } catch (\PhpOffice\PhpSpreadsheet\Exception $e) {
             if ($this->db->connID && $this->db->getTransDepth() > 0) { $this->db->transRollback(); }
             $this->logger->error("[{$this->serviceNameForLogging}] PHPSpreadsheetライブラリエラー: " . $e->getMessage(), ['exception' => $e]);
-            return $this->generateResult(false, "Excel/CSV処理ライブラリでエラーが発生: " . $e->getMessage(), $importedCount, $updatedCount, $skippedCount, $processedDataRows, [$e->getMessage()]);
+            return $this->generateResult(false, "Excel処理ライブラリでエラーが発生: " . $e->getMessage(), $importedCount, $updatedCount, $skippedCount, $processedDataRows, [$e->getMessage()]);
         } catch (\Throwable $e) {
             if ($this->db->connID && $this->db->getTransDepth() > 0) { $this->db->transRollback(); }
             $this->logger->critical("[{$this->serviceNameForLogging}] 予期せぬ一般エラー: " . $e->getMessage(), ['exception' => $e]);

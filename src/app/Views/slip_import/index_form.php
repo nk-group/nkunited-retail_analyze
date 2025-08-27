@@ -51,10 +51,10 @@
             'file_input_id' => 'purchase_slip_file',
             'file_input_name' => 'slip_file', // 全伝票で共通のファイル入力名
             'status_div_id' => 'purchaseSlipStatus',
-            'action_route' => 'purchase_slip_import_process', // 回答81のルート名
+            'action_route' => 'purchase_slip_import_process',
             'flash_success_key' => 'success_purchase_slip',
             'flash_error_key' => 'error_purchase_slip',
-            'notes' => 'ファイル形式: 指定のExcelまたはCSV形式。1行目ヘッダー、2行目以降データ。',
+            'notes' => 'ファイル形式: 指定のExcel形式。1行目ヘッダー、2行目以降データ。',
             'enabled' => true
         ],
         'sales_slip' => [
@@ -67,7 +67,7 @@
             'action_route' => 'sales_slip_import_process',
             'flash_success_key' => 'success_sales_slip',
             'flash_error_key' => 'error_sales_slip',
-            'notes' => 'ファイル形式: 指定のExcelまたはCSV形式。1行目ヘッダー、2行目以降データ。',
+            'notes' => 'ファイル形式: 指定のExcel形式。1行目ヘッダー、2行目以降データ。',
             'enabled' => true
         ],
         'transfer_slip' => [
@@ -80,7 +80,7 @@
             'action_route' => 'transfer_slip_import_process',
             'flash_success_key' => 'success_transfer_slip',
             'flash_error_key' => 'error_transfer_slip',
-            'notes' => 'ファイル形式: 指定のExcelまたはCSV形式。1行目ヘッダー、2行目以降データ。',
+            'notes' => 'ファイル形式: 指定のExcel形式。1行目ヘッダー、2行目以降データ。',
             'enabled' => true
         ],
         'adjustment_slip' => [
@@ -93,7 +93,7 @@
             'action_route' => 'adjustment_slip_import_process',
             'flash_success_key' => 'success_adjustment_slip',
             'flash_error_key' => 'error_adjustment_slip',
-            'notes' => 'ファイル形式: 指定のExcelまたはCSV形式。1行目ヘッダー、2行目以降データ。',
+            'notes' => 'ファイル形式: 指定のExcel形式。1行目ヘッダー、2行目以降データ。',
             'enabled' => true
         ],
         'order_slip' => [
@@ -106,7 +106,21 @@
             'action_route' => 'order_slip_import_process',
             'flash_success_key' => 'success_order_slip',
             'flash_error_key' => 'error_order_slip',
-            'notes' => 'ファイル形式: 指定のExcelまたはCSV形式。1行目ヘッダー、2行目以降データ。',
+            'notes' => 'ファイル形式: 指定のExcel形式。1行目ヘッダー、2行目以降データ。',
+            'enabled' => true
+        ],
+        // 商品振替伝票を追加
+        'product_transfer_slip' => [
+            'title' => '商品振替伝票取込',
+            'icon' => 'bi-arrow-left-right', // アイコン例
+            'form_id' => 'productTransferSlipImportForm',
+            'file_input_id' => 'product_transfer_slip_file',
+            'file_input_name' => 'slip_file',
+            'status_div_id' => 'productTransferSlipStatus',
+            'action_route' => 'product_transfer_slip_import_process',
+            'flash_success_key' => 'success_product_transfer_slip',
+            'flash_error_key' => 'error_product_transfer_slip',
+            'notes' => 'ファイル形式: 指定のExcel形式。1行目ヘッダー、2行目以降データ。振替元・振替先の対応関係を維持してください。',
             'enabled' => true
         ],
     ];
@@ -136,13 +150,13 @@
             <input type="hidden" name="target_data_name" value="<?= esc($targetName) ?>">
             
             <div class="mb-3">
-                <label for="<?= esc($slip['file_input_id']) ?>" class="form-label fw-bold">取込ファイル選択 (Excel: .xlsx, .xls または CSV: .csv)</label>
+                <label for="<?= esc($slip['file_input_id']) ?>" class="form-label fw-bold">取込ファイル選択 (Excel: .xlsx, .xls)</label>
                 <input class="form-control <?= (isset($errorMessage) && $slip['enabled'] && (strpos($errorMessage, '選択してください') !== false || strpos($errorMessage, 'ファイル形式') !== false || strpos($errorMessage, 'サイズが大きすぎます') !== false || strpos($errorMessage, 'ファイルの保存処理中にエラー') !== false )) ? 'is-invalid' : '' ?>" 
                        type="file" 
                        id="<?= esc($slip['file_input_id']) ?>" 
                        name="<?= esc($slip['file_input_name']) ?>" 
                        <?= !$slip['enabled'] ? 'disabled' : 'required' ?>
-                       accept=".xlsx,.xls,.csv">
+                       accept=".xlsx,.xls">>
                 <?php if (isset($errorMessage) && $slip['enabled']): ?>
                     <div class="invalid-feedback"> 
                          <?= esc($errorMessage) ?>
