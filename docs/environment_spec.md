@@ -53,6 +53,7 @@
 ```ini
 memory_limit = 4096M
 post_max_size = 300M
+upload_tmp_dir = ※省略せずに必ず指定したほうが良い
 upload_max_filesize = 200M
 
 extension_dir = "ext"
@@ -68,6 +69,10 @@ extension=php_pdo_sqlsrv_82_nts_x64
 
 mbstring.language = Japanese
 ```
+※upload_tmp_dirが未設定の場合、x:Windows\Tempが使われます
+　x:Windows\Tempのアクセス権は特殊なので、処理の過程で問題が発生することがあります
+　IIS_USERS、IUSRのフルアクセスできる場所にする
+　x:Windows\Tempを使いたい場合は、ファイルExplorerでアクセスして権限を与えてください
 
 ---
 

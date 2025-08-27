@@ -344,8 +344,8 @@
 | 論理名 | 物理名 | データ型 | NULL | デフォルト値 | 備考 |
 |--------|--------|----------|------|-------------|------|
 | 入力番号 | input_number | int | NOT NULL | - | 主キー（複合）|
+| 調整番号 | adjustment_number | int | NOT NULL | - | 主キー（複合）|
 | 行番号 | line_number | smallint | NOT NULL | - | 主キー（複合）|
-| 振替伝票番号 | transfer_slip_number | int | NOT NULL | - | 振替伝票識別番号 |
 | 店舗コード | store_code | nvarchar(20) | NOT NULL | - | 振替実行店舗コード |
 | 店舗名 | store_name | nvarchar(100) | NULL | - | 振替実行店舗名 |
 | 振替区分 | transfer_type | nvarchar(50) | NOT NULL | - | 振替の種別（OUT:振替元、IN:振替先） |
@@ -354,7 +354,6 @@
 | 振替理由名 | transfer_reason_name | nvarchar(100) | NULL | - | 振替理由の名称 |
 | 担当者コード | staff_code | nvarchar(20) | NULL | - | 処理担当者コード |
 | 担当者名 | staff_name | nvarchar(100) | NULL | - | 処理担当者名 |
-| 振替ペアID | transfer_pair_id | int | NULL | - | 振替元・振替先の関連識別子 |
 | JANコード | jan_code | nvarchar(50) | NULL | - | 商品JANコード |
 | SKUコード | sku_code | nvarchar(50) | NULL | - | 商品SKUコード |
 | メーカーコード | manufacturer_code | nvarchar(8) | NULL | - | メーカー識別コード |
@@ -374,22 +373,20 @@
 | 更新日時 | updated_at | datetime2(3) | NULL | - | 統合更新日時 |
 
 ### 制約
-- **主キー**: (input_number, line_number)
+- **主キー**: (input_number, adjustment_number, line_number)
 
 ### インデックス
-- IX_product_transfer_slip_transfer_slip_number
+- IX_product_transfer_slip_adjustment_number
 - IX_product_transfer_slip_store_code
 - IX_product_transfer_slip_transfer_date
-- IX_product_transfer_slip_transfer_pair_id
 - IX_product_transfer_slip_jan_code
 
 ### 業務ルール
 1. **振替区分**:
    - `OUT`: 振替元商品（在庫減少）
    - `IN`: 振替先商品（在庫増加）
-2. **振替ペアID**: 同一の振替処理における振替元・振替先の関連を示す
-3. **数量の扱い**: 振替数量は振替区分により符号が決定（OUT:負数、IN:正数）
-4. **振替元・振替先**: 通常は同一伝票内で対となる行が存在
+2. **数量の扱い**: 振替数量は振替区分により符号が決定（OUT:負数、IN:正数）
+3. **振替元・振替先**: 通常は同一調整番号内で対となる行が存在
 
 ---
 

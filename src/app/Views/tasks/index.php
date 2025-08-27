@@ -139,6 +139,7 @@
                                     case 'transfer_slip': $targetDataDisplay = '移動伝票'; break;
                                     case 'adjustment_slip': $targetDataDisplay = '調整伝票'; break;
                                     case 'order_slip': $targetDataDisplay = '発注伝票'; break;
+                                    case 'product_transfer_slip': $targetDataDisplay = '商品振替伝票'; break;
                                 }
                                 ?>
                                 <tr>

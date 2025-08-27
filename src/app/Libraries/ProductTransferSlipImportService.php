@@ -54,7 +54,7 @@ class ProductTransferSlipImportService extends BaseImportService
 
             $expectedMainHeaders = [
                 '入力番号',      // Excel列1 (A)
-                '調整番号',      // Excel列2 (B) - 実際は振替番号として使用
+                '調整番号',      // Excel列2 (B)
                 '行',           // Excel列3 (C)
                 '店舗',         // Excel列4 (D)
                 '店舗名',       // Excel列5 (E)
@@ -110,25 +110,25 @@ class ProductTransferSlipImportService extends BaseImportService
                 $processedDataRows++;
 
                 $inputNumberRaw = $rowData[0] ?? null;
+                $adjustmentNumberRaw = $rowData[1] ?? null;  // 調整番号は列2(B)
                 $lineNumberRaw  = $rowData[2] ?? null;  // 行は列3(C)
 
                 $inputNumber = DataTransformer::excelToIntOrNull($inputNumberRaw);
+                $adjustmentNumber = DataTransformer::excelToIntOrNull($adjustmentNumberRaw);
                 $lineNumber  = DataTransformer::excelToIntOrNull($lineNumberRaw);
 
-                if ($inputNumber === null || $lineNumber === null) {
-                    $errorMessages[] = "{$currentRowNumInFile}行目: PK必須項目（入力番号または行番号）が空か無効。入力番号: '{$inputNumberRaw}', 行番号: '{$lineNumberRaw}'";
+                if ($inputNumber === null || $adjustmentNumber === null || $lineNumber === null) {
+                    $errorMessages[] = "{$currentRowNumInFile}行目: PK必須項目（入力番号、調整番号、行番号）が空か無効。入力番号: '{$inputNumberRaw}', 調整番号: '{$adjustmentNumberRaw}', 行番号: '{$lineNumberRaw}'";
                     $skippedCount++;
                     $overallSuccess = false;
                     $rowIterator->next();
                     continue;
                 }
 
-                $transferSlipNumberRaw = $rowData[1] ?? null;  // 調整番号を振替伝票番号として使用
                 $storeCodeRaw          = $rowData[3] ?? null;  // 店舗
                 $transferTypeRaw       = $rowData[5] ?? null;  // 振替区分
                 $transferDateRaw       = $rowData[6] ?? null;  // 振替日付
 
-                $transferSlipNumber = DataTransformer::excelToIntOrNull($transferSlipNumberRaw);
                 $storeCode         = DataTransformer::excelToStringOrEmpty($storeCodeRaw);
                 $transferType      = DataTransformer::excelToStringOrEmpty($transferTypeRaw);
                 $transferDate      = DataTransformer::excelToDbDate($transferDateRaw);
@@ -144,27 +144,22 @@ class ProductTransferSlipImportService extends BaseImportService
                 }
                 
                 $currentRequiredErrors = [];
-                if ($transferSlipNumber === null) $currentRequiredErrors[] = "振替伝票番号(列2)";
                 if (empty($storeCode))           $currentRequiredErrors[] = "店舗コード(列4)";
                 if (empty($normalizedTransferType)) $currentRequiredErrors[] = "振替区分(列6)";
                 if (empty($transferDate))        $currentRequiredErrors[] = "振替日付(列7)";
 
                 if (!empty($currentRequiredErrors)) {
-                    $errorMessages[] = "{$currentRowNumInFile}行目 (PK: {$inputNumber}-{$lineNumber}): 必須項目 (" . implode(', ', $currentRequiredErrors) . ") 不足によりスキップ。";
+                    $errorMessages[] = "{$currentRowNumInFile}行目 (PK: {$inputNumber}-{$adjustmentNumber}-{$lineNumber}): 必須項目 (" . implode(', ', $currentRequiredErrors) . ") 不足によりスキップ。";
                     $skippedCount++;
                     $overallSuccess = false;
                     $rowIterator->next();
                     continue;
                 }
 
-                // 振替ペアIDの生成（同一振替伝票番号内で振替元・振替先を関連付ける）
-                // 簡易的に伝票番号をベースとした値を使用
-                $transferPairId = $transferSlipNumber;
-
                 $dataForDb = [
                     'input_number'              => $inputNumber,
+                    'adjustment_number'         => $adjustmentNumber,
                     'line_number'               => $lineNumber,
-                    'transfer_slip_number'      => $transferSlipNumber,
                     'store_code'                => $storeCode,
                     'store_name'                => DataTransformer::excelToStringOrEmpty($rowData[4] ?? null),
                     'transfer_type'             => $normalizedTransferType,
@@ -173,7 +168,6 @@ class ProductTransferSlipImportService extends BaseImportService
                     'transfer_reason_name'      => DataTransformer::excelToStringOrEmpty($rowData[8] ?? null),
                     'staff_code'                => DataTransformer::excelToStringOrEmpty($rowData[9] ?? null),
                     'staff_name'                => DataTransformer::excelToStringOrEmpty($rowData[10] ?? null),
-                    'transfer_pair_id'          => $transferPairId,
                     'jan_code'                  => DataTransformer::excelToStringOrEmpty($rowData[11] ?? null),
                     'sku_code'                  => DataTransformer::excelToStringOrEmpty($rowData[12] ?? null),
                     'manufacturer_code'         => DataTransformer::excelToStringOrEmpty($rowData[13] ?? null),
@@ -182,19 +176,20 @@ class ProductTransferSlipImportService extends BaseImportService
                     'product_name'              => DataTransformer::excelToStringOrEmpty($rowData[16] ?? null),
                     'manufacturer_color_code'   => DataTransformer::excelToStringOrEmpty($rowData[17] ?? null),
                     'color_code'                => DataTransformer::excelToStringOrEmpty($rowData[18] ?? null),
-                    'color_name'                => DataTransformer::excelToStringOrEmpty($rowData[19] ?? null), // カラー名列（空列の可能性有り）
+                    'color_name'                => DataTransformer::excelToStringOrEmpty($rowData[19] ?? null),
                     'size_code'                 => DataTransformer::excelToStringOrEmpty($rowData[20] ?? null),
-                    'size_name'                 => DataTransformer::excelToStringOrEmpty($rowData[21] ?? null), // サイズ名列（空列の可能性有り）
+                    'size_name'                 => DataTransformer::excelToStringOrEmpty($rowData[21] ?? null),
                     'cost_price'                => DataTransformer::excelToDecimalOrNull($rowData[22] ?? null, 2),
                     'selling_price'             => DataTransformer::excelToDecimalOrNull($rowData[23] ?? null, 2),
                     'transfer_quantity'         => DataTransformer::excelToIntOrNull($rowData[24] ?? null),
                     'cost_amount'               => DataTransformer::excelToDecimalOrNull($rowData[25] ?? null, 2),
                     'selling_amount'            => DataTransformer::excelToDecimalOrNull($rowData[26] ?? null, 2),
-                    'updated_at'                => date('Y-m-d H:i:s'), // 商品振替では更新日時を現在時刻に設定
+                    'updated_at'                => date('Y-m-d H:i:s'),
                 ];
 
                 $existing = $this->db->table(self::TARGET_TABLE)
                                    ->where('input_number', $dataForDb['input_number'])
+                                   ->where('adjustment_number', $dataForDb['adjustment_number'])
                                    ->where('line_number', $dataForDb['line_number'])
                                    ->get()->getRow();
                 
@@ -202,22 +197,27 @@ class ProductTransferSlipImportService extends BaseImportService
                 $operationSuccess = false;
 
                 if ($existing) { 
-                    if ($this->executeUpdate(self::TARGET_TABLE, $dataForDb, ['input_number' => $dataForDb['input_number'], 'line_number' => $dataForDb['line_number']])) {
+                    $updateConditions = [
+                        'input_number' => $dataForDb['input_number'],
+                        'adjustment_number' => $dataForDb['adjustment_number'], 
+                        'line_number' => $dataForDb['line_number']
+                    ];
+                    if ($this->executeUpdate(self::TARGET_TABLE, $dataForDb, $updateConditions)) {
                         if ($this->db->transStatus()) {
                             $this->db->transCommit();
                             $connIdInfo = ($this->db->connID) ? (is_object($this->db->connID) ? get_class($this->db->connID) : gettype($this->db->connID)." (ID:".strval($this->db->connID).")") : 'N/A';
-                            $this->logger->info("[{$this->serviceNameForLogging}] DEBUG: Update Committed for PK {$dataForDb['input_number']}-{$dataForDb['line_number']}. DB Connection Info: " . $connIdInfo);
+                            $this->logger->info("[{$this->serviceNameForLogging}] DEBUG: Update Committed for PK {$dataForDb['input_number']}-{$dataForDb['adjustment_number']}-{$dataForDb['line_number']}. DB Connection Info: " . $connIdInfo);
                             $updatedCount++;
                             $operationSuccess = true;
                         } else {
                             $this->db->transRollback();
-                            $this->logger->error("[{$this->serviceNameForLogging}] DEBUG: Update ROLLBACK (transStatus false) for PK {$dataForDb['input_number']}-{$dataForDb['line_number']}.");
-                            $errorMessages[] = "{$currentRowNumInFile}行目 (PK: {$dataForDb['input_number']}-{$dataForDb['line_number']}): DB更新後トランザクションコミット失敗。";
+                            $this->logger->error("[{$this->serviceNameForLogging}] DEBUG: Update ROLLBACK (transStatus false) for PK {$dataForDb['input_number']}-{$dataForDb['adjustment_number']}-{$dataForDb['line_number']}.");
+                            $errorMessages[] = "{$currentRowNumInFile}行目 (PK: {$dataForDb['input_number']}-{$dataForDb['adjustment_number']}-{$dataForDb['line_number']}): DB更新後トランザクションコミット失敗。";
                         }
                     } else {
                         $this->db->transRollback();
-                        $this->logger->error("[{$this->serviceNameForLogging}] DEBUG: Update ROLLBACK (executeUpdate false) for PK {$dataForDb['input_number']}-{$dataForDb['line_number']}.");
-                        $errorMessages[] = "{$currentRowNumInFile}行目 (PK: {$dataForDb['input_number']}-{$dataForDb['line_number']}): DB更新実行失敗。";
+                        $this->logger->error("[{$this->serviceNameForLogging}] DEBUG: Update ROLLBACK (executeUpdate false) for PK {$dataForDb['input_number']}-{$dataForDb['adjustment_number']}-{$dataForDb['line_number']}.");
+                        $errorMessages[] = "{$currentRowNumInFile}行目 (PK: {$dataForDb['input_number']}-{$dataForDb['adjustment_number']}-{$dataForDb['line_number']}): DB更新実行失敗。";
                     }
                 } else { 
                     $currentBatchDataForInsert[] = $dataForDb;
@@ -226,7 +226,7 @@ class ProductTransferSlipImportService extends BaseImportService
                         $this->db->transCommit();
                     } else {
                         $this->db->transRollback();
-                        $this->logger->error("[{$this->serviceNameForLogging}] DEBUG: Transaction for insert preparation path had an issue for PK {$dataForDb['input_number']}-{$dataForDb['line_number']}.");
+                        $this->logger->error("[{$this->serviceNameForLogging}] DEBUG: Transaction for insert preparation path had an issue for PK {$dataForDb['input_number']}-{$dataForDb['adjustment_number']}-{$dataForDb['line_number']}.");
                         $operationSuccess = false; 
                     }
                 }

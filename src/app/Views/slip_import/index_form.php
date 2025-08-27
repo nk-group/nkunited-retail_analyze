@@ -156,7 +156,7 @@
                        id="<?= esc($slip['file_input_id']) ?>" 
                        name="<?= esc($slip['file_input_name']) ?>" 
                        <?= !$slip['enabled'] ? 'disabled' : 'required' ?>
-                       accept=".xlsx,.xls">>
+                       accept=".xlsx,.xls">
                 <?php if (isset($errorMessage) && $slip['enabled']): ?>
                     <div class="invalid-feedback"> 
                          <?= esc($errorMessage) ?>

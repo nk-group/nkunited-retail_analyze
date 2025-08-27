@@ -11,6 +11,7 @@ use App\Libraries\SalesSlipImportService;
 use App\Libraries\TransferSlipImportService;
 use App\Libraries\AdjustmentSlipImportService;
 use App\Libraries\OrderSlipImportService;
+use App\Libraries\ProductTransferSlipImportService;
 
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\CLI\CLI;
@@ -244,7 +245,15 @@ class ProcessImportTasks extends BaseCommand
                         $this->logger->info("OrderSlipImportService呼び出し - タスクID: {$this->currentProcessingTaskId}, ファイルパス: {$task->stored_file_path}");
                         $resultFromService = $importer->processFile($task->stored_file_path);
                         unset($importer);
-                    }                    
+                    }
+
+                    elseif ($task->target_data_name === 'product_transfer_slip') { 
+                        $importer = new ProductTransferSlipImportService();
+                        CLI::write("ProductTransferSlipImportServiceを呼び出します (タスクID: {$this->currentProcessingTaskId})", 'blue');
+                        $this->logger->info("ProductTransferSlipImportService呼び出し - タスクID: {$this->currentProcessingTaskId}, ファイルパス: {$task->stored_file_path}");
+                        $resultFromService = $importer->processFile($task->stored_file_path);
+                        unset($importer);
+                    }
 
                     else { 
                         $this->logger->error("Task ID {$this->currentProcessingTaskId}: Unknown target_data_name '{$task->target_data_name}'. No service available.");
