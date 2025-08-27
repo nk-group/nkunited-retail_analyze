@@ -404,6 +404,15 @@ class SalesAnalysisController extends BaseController
             }
         }
         
+        // 商品振替イベント
+        if (!empty($week['product_transfer_events'])) {
+            $totalTransfer = array_sum(array_column($week['product_transfer_events'], 'quantity'));
+            if ($totalTransfer != 0) {
+                $sign = $totalTransfer > 0 ? '+' : '';
+                $badges[] = "🔄 振替{$sign}{$totalTransfer}";
+            }
+        }
+        
         // 調整イベント
         if (!empty($week['adjustment_events'])) {
             $totalAdjustment = array_sum(array_column($week['adjustment_events'], 'quantity'));
@@ -433,11 +442,13 @@ class SalesAnalysisController extends BaseController
     {
         return [
             'purchase_slips' => $this->formatPurchaseSlips($slipDetails['purchase_slips']),
+            'product_transfer_slips' => $this->formatProductTransferSlips($slipDetails['product_transfer_slips']),
             'adjustment_slips' => $this->formatAdjustmentSlips($slipDetails['adjustment_slips']),
             'transfer_slips' => $this->formatTransferSlips($slipDetails['transfer_slips']),
             'order_slips' => $this->formatOrderSlips($slipDetails['order_slips'] ?? []),
             'summary' => [
                 'purchase_count' => count($slipDetails['purchase_slips']),
+                'product_transfer_count' => count($slipDetails['product_transfer_slips']),
                 'adjustment_count' => count($slipDetails['adjustment_slips']),
                 'transfer_count' => count($slipDetails['transfer_slips']),
                 'order_count' => count($slipDetails['order_slips'] ?? [])
@@ -467,6 +478,29 @@ class SalesAnalysisController extends BaseController
         }
         return $formatted;
     }
+
+    /**
+     * 商品振替伝票の整形
+     */
+    private function formatProductTransferSlips(array $productTransferSlips): array
+    {
+        $formatted = [];
+        foreach ($productTransferSlips as $slip) {
+            $formatted[] = [
+                'date' => $slip['transfer_date'],
+                'adjustment_number' => $slip['adjustment_number'],
+                'store' => $slip['store_name'] ?: '-',
+                'transfer_type' => $slip['transfer_type'],
+                'reason' => $slip['transfer_reason_name'] ?: '-',
+                'quantity' => $slip['total_quantity'],
+                'unit_price' => $slip['avg_cost_price'],
+                'amount' => $slip['total_amount'],
+                'staff' => $slip['staff_name'] ?: '-',
+                'remarks' => $this->getProductTransferRemarks($slip)
+            ];
+        }
+        return $formatted;
+    }    
 
     /**
      * 調整伝票の整形
@@ -547,6 +581,30 @@ class SalesAnalysisController extends BaseController
             return $slip['slip_type'] === '仕入' ? '通常仕入' : '追加仕入';
         }
     }
+
+    /**
+     * 商品振替備考生成
+     */
+    private function getProductTransferRemarks(array $slip): string
+    {
+        $remarks = [];
+        
+        if ($slip['transfer_type'] === 'OUT') {
+            $remarks[] = '振替元（在庫減）';
+        } elseif ($slip['transfer_type'] === 'IN') {
+            $remarks[] = '振替先（在庫増）';
+        }
+        
+        if (abs($slip['total_quantity']) > 100) {
+            $remarks[] = '大量振替';
+        }
+        
+        if (!empty($slip['transfer_reason_name'])) {
+            $remarks[] = $slip['transfer_reason_name'];
+        }
+        
+        return implode('・', $remarks) ?: '商品振替';
+    }    
 
     /**
      * 移動備考生成

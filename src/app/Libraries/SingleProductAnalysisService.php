@@ -45,8 +45,8 @@ class SingleProductAnalysisService
             // 3. 品出し日取得
             $transferInfo = $this->getTransferInfo($basicInfo['valid_jan_codes']);
             
-            // 4. 仕入情報取得
-            $purchaseInfo = $this->getPurchaseInfo($basicInfo['valid_jan_codes'], $transferInfo['first_transfer_date']);
+            // 4. 仕入・商品振替情報取得（統合版）
+            $purchaseInfo = $this->getPurchaseAndTransferInfo($basicInfo['valid_jan_codes'], $transferInfo['first_transfer_date']);
             
             // 5. 週別販売データ取得
             $weeklySales = $this->getWeeklySales($basicInfo['valid_jan_codes'], $transferInfo['first_transfer_date']);
@@ -244,9 +244,73 @@ class SingleProductAnalysisService
     }
     
     /**
-     * 仕入情報取得
+     * 仕入・商品振替情報取得（統合版）- エラーを出さない仕様
      */
-    protected function getPurchaseInfo(array $janCodes, string $baseDate): array
+    protected function getPurchaseAndTransferInfo(array $janCodes, string $baseDate): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        // 仕入伝票情報取得
+        $purchaseInfo = $this->getPurchaseInfo($janCodes);
+        
+        // 商品振替伝票情報取得
+        $transferInfo = $this->getProductTransferInfo($janCodes);
+        
+        // 統合処理
+        $totalPurchaseQty = $purchaseInfo['total_purchase_qty'] + $transferInfo['total_transfer_qty'];
+        $totalPurchaseCost = $purchaseInfo['total_purchase_cost'] + $transferInfo['total_transfer_cost'];
+        
+        // 平均原価計算
+        $avgCostPrice = 0;
+        if ($this->costMethod === 'average') {
+            if ($totalPurchaseQty > 0) {
+                $avgCostPrice = $totalPurchaseCost / $totalPurchaseQty;
+            }
+        } else {
+            // 最終仕入原価法：仕入伝票を優先、無ければ商品振替伝票
+            $avgCostPrice = $purchaseInfo['avg_cost_price'] > 0 
+                ? $purchaseInfo['avg_cost_price'] 
+                : $transferInfo['avg_cost_price'];
+        }
+        
+        // 全体の日付範囲計算
+        $firstPurchaseDate = null;
+        $lastPurchaseDate = null;
+        $allDates = array_merge(
+            array_filter([$purchaseInfo['first_purchase_date'], $purchaseInfo['last_purchase_date']]),
+            array_filter([$transferInfo['first_transfer_date'], $transferInfo['last_transfer_date']])
+        );
+        
+        if (!empty($allDates)) {
+            $firstPurchaseDate = min($allDates);
+            $lastPurchaseDate = max($allDates);
+        }
+        
+        // 仕入前売上チェック
+        $prePurchaseSales = $this->checkPrePurchaseSales($janCodes, $firstPurchaseDate ?: $baseDate);
+        
+        return [
+            'total_purchase_qty' => (int)$totalPurchaseQty,
+            'avg_cost_price' => (float)$avgCostPrice,
+            'total_purchase_cost' => (float)$totalPurchaseCost,
+            'purchase_record_count' => $purchaseInfo['purchase_record_count'] + $transferInfo['transfer_record_count'],
+            'purchase_date_count' => $this->calculateUniqueDateCount($janCodes, $firstPurchaseDate, $lastPurchaseDate),
+            'first_purchase_date' => $firstPurchaseDate,
+            'last_purchase_date' => $lastPurchaseDate,
+            'cost_method' => $this->costMethod,
+            'pre_purchase_sales' => $prePurchaseSales,
+            // 詳細情報
+            'purchase_only' => $purchaseInfo,
+            'transfer_only' => $transferInfo,
+            'has_purchase_data' => $purchaseInfo['total_purchase_qty'] > 0,
+            'has_transfer_data' => $transferInfo['total_transfer_qty'] > 0
+        ];
+    }
+    
+    /**
+     * 仕入伝票情報取得（エラーを出さない）
+     */
+    protected function getPurchaseInfo(array $janCodes): array
     {
         $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
         
@@ -280,8 +344,8 @@ class SingleProductAnalysisService
             )
             SELECT 
                 SUM(ps.purchase_quantity) as total_purchase_qty,
-                (SELECT latest_cost_price FROM latest_purchase WHERE rn = 1) as avg_cost_price,
-                SUM(ps.purchase_quantity) * (SELECT latest_cost_price FROM latest_purchase WHERE rn = 1) as total_purchase_cost,
+                COALESCE((SELECT latest_cost_price FROM latest_purchase WHERE rn = 1), 0) as avg_cost_price,
+                SUM(ps.purchase_quantity) * COALESCE((SELECT latest_cost_price FROM latest_purchase WHERE rn = 1), 0) as total_purchase_cost,
                 COUNT(*) as purchase_record_count,
                 MIN(ps.purchase_date) as first_purchase_date,
                 MAX(ps.purchase_date) as last_purchase_date
@@ -293,8 +357,17 @@ class SingleProductAnalysisService
         
         $result = $this->db->query($sql, $params)->getRowArray();
         
-        if (!$result || $result['total_purchase_qty'] <= 0) {
-            throw new SingleProductAnalysisException('仕入データが見つかりません');
+        // データが無い場合でも0値で初期化
+        if (!$result || $result['total_purchase_qty'] === null) {
+            return [
+                'total_purchase_qty' => 0,
+                'avg_cost_price' => 0.0,
+                'total_purchase_cost' => 0.0,
+                'purchase_record_count' => 0,
+                'purchase_date_count' => 0,
+                'first_purchase_date' => null,
+                'last_purchase_date' => null
+            ];
         }
         
         $dateSql = "
@@ -306,19 +379,125 @@ class SingleProductAnalysisService
         $dateResult = $this->db->query($dateSql, $janCodes)->getRowArray();
         $result['purchase_date_count'] = $dateResult['purchase_date_count'] ?? 0;
         
-        $prePurchaseSales = $this->checkPrePurchaseSales($janCodes, $result['first_purchase_date']);
+        return [
+            'total_purchase_qty' => (int)($result['total_purchase_qty'] ?? 0),
+            'avg_cost_price' => (float)($result['avg_cost_price'] ?? 0),
+            'total_purchase_cost' => (float)($result['total_purchase_cost'] ?? 0),
+            'purchase_record_count' => (int)($result['purchase_record_count'] ?? 0),
+            'purchase_date_count' => (int)($result['purchase_date_count'] ?? 0),
+            'first_purchase_date' => $result['first_purchase_date'],
+            'last_purchase_date' => $result['last_purchase_date']
+        ];
+    }
+    
+    /**
+     * 商品振替伝票情報取得
+     */
+    protected function getProductTransferInfo(array $janCodes): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        if ($this->costMethod === 'average') {
+            $sql = "
+            SELECT 
+                SUM(transfer_quantity) as total_transfer_qty,
+                CASE 
+                    WHEN SUM(CASE WHEN transfer_quantity != 0 THEN ABS(transfer_quantity) ELSE 0 END) > 0 
+                    THEN SUM(CASE WHEN transfer_quantity != 0 THEN ABS(transfer_quantity) * cost_price ELSE 0 END) / 
+                         SUM(CASE WHEN transfer_quantity != 0 THEN ABS(transfer_quantity) ELSE 0 END)
+                    ELSE 0 
+                END as avg_cost_price,
+                SUM(cost_amount) as total_transfer_cost,
+                COUNT(*) as transfer_record_count,
+                MIN(transfer_date) as first_transfer_date,
+                MAX(transfer_date) as last_transfer_date
+            FROM product_transfer_slip
+            WHERE jan_code IN ({$janCodesPlaceholder})
+            ";
+            $params = $janCodes;
+        } else {
+            $sql = "
+            WITH latest_transfer AS (
+                SELECT 
+                    cost_price as latest_cost_price,
+                    ROW_NUMBER() OVER (ORDER BY transfer_date DESC, input_number DESC, line_number DESC) as rn
+                FROM product_transfer_slip
+                WHERE jan_code IN ({$janCodesPlaceholder})
+                  AND transfer_quantity != 0
+            )
+            SELECT 
+                SUM(pts.transfer_quantity) as total_transfer_qty,
+                COALESCE((SELECT latest_cost_price FROM latest_transfer WHERE rn = 1), 0) as avg_cost_price,
+                SUM(pts.cost_amount) as total_transfer_cost,
+                COUNT(*) as transfer_record_count,
+                MIN(pts.transfer_date) as first_transfer_date,
+                MAX(pts.transfer_date) as last_transfer_date
+            FROM product_transfer_slip pts
+            WHERE pts.jan_code IN ({$janCodesPlaceholder})
+            ";
+            $params = array_merge($janCodes, $janCodes);
+        }
+        
+        $result = $this->db->query($sql, $params)->getRowArray();
+        
+        // データが無い場合でも0値で初期化
+        if (!$result || $result['total_transfer_qty'] === null) {
+            return [
+                'total_transfer_qty' => 0,
+                'avg_cost_price' => 0.0,
+                'total_transfer_cost' => 0.0,
+                'transfer_record_count' => 0,
+                'transfer_date_count' => 0,
+                'first_transfer_date' => null,
+                'last_transfer_date' => null
+            ];
+        }
+        
+        $dateSql = "
+        SELECT COUNT(DISTINCT transfer_date) as transfer_date_count
+        FROM product_transfer_slip 
+        WHERE jan_code IN ({$janCodesPlaceholder})
+        ";
+        
+        $dateResult = $this->db->query($dateSql, $janCodes)->getRowArray();
+        $result['transfer_date_count'] = $dateResult['transfer_date_count'] ?? 0;
         
         return [
-            'total_purchase_qty' => (int)$result['total_purchase_qty'],
-            'avg_cost_price' => (float)$result['avg_cost_price'],
-            'total_purchase_cost' => (float)$result['total_purchase_cost'],
-            'purchase_record_count' => (int)$result['purchase_record_count'],
-            'purchase_date_count' => (int)$result['purchase_date_count'],
-            'first_purchase_date' => $result['first_purchase_date'],
-            'last_purchase_date' => $result['last_purchase_date'],
-            'cost_method' => $this->costMethod,
-            'pre_purchase_sales' => $prePurchaseSales
+            'total_transfer_qty' => (int)($result['total_transfer_qty'] ?? 0),
+            'avg_cost_price' => (float)($result['avg_cost_price'] ?? 0),
+            'total_transfer_cost' => (float)($result['total_transfer_cost'] ?? 0),
+            'transfer_record_count' => (int)($result['transfer_record_count'] ?? 0),
+            'transfer_date_count' => (int)($result['transfer_date_count'] ?? 0),
+            'first_transfer_date' => $result['first_transfer_date'],
+            'last_transfer_date' => $result['last_transfer_date']
         ];
+    }
+    
+    /**
+     * 一意日付数計算
+     */
+    protected function calculateUniqueDateCount(array $janCodes, $firstDate, $lastDate): int
+    {
+        if (!$firstDate || !$lastDate) {
+            return 0;
+        }
+        
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT COUNT(DISTINCT combined_date) as unique_date_count
+        FROM (
+            SELECT purchase_date as combined_date FROM purchase_slip WHERE jan_code IN ({$janCodesPlaceholder})
+            UNION
+            SELECT transfer_date as combined_date FROM product_transfer_slip WHERE jan_code IN ({$janCodesPlaceholder})
+        ) combined_dates
+        WHERE combined_date BETWEEN ? AND ?
+        ";
+        
+        $params = array_merge($janCodes, $janCodes, [$firstDate, $lastDate]);
+        $result = $this->db->query($sql, $params)->getRowArray();
+        
+        return (int)($result['unique_date_count'] ?? 0);
     }
 
     /**
@@ -326,6 +505,15 @@ class SingleProductAnalysisService
      */
     protected function checkPrePurchaseSales(array $janCodes, string $firstPurchaseDate): array
     {
+        if (!$firstPurchaseDate) {
+            return [
+                'exists' => false,
+                'record_count' => 0,
+                'total_quantity' => 0,
+                'total_amount' => 0
+            ];
+        }
+        
         $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
         
         $sql = "
@@ -498,10 +686,8 @@ class SingleProductAnalysisService
                 'purchase_events' => $weekEvents['purchase'] ?? [],
                 'adjustment_events' => $weekEvents['adjustment'] ?? [],
                 'transfer_events' => $weekEvents['transfer'] ?? [],
-                'purchase_events' => $weekEvents['purchase'] ?? [],
-                'adjustment_events' => $weekEvents['adjustment'] ?? [],
-                'transfer_events' => $weekEvents['transfer'] ?? [],
-                'order_events' => $weekEvents['order'] ?? []
+                'order_events' => $weekEvents['order'] ?? [],
+                'product_transfer_events' => $weekEvents['product_transfer'] ?? []
             ];
         }
         
@@ -525,6 +711,12 @@ class SingleProductAnalysisService
                     $stock += $adj['quantity'];
                 }
             }
+            // 商品振替イベントも在庫に反映
+            if (isset($weeklyEvents[$w]['product_transfer'])) {
+                foreach ($weeklyEvents[$w]['product_transfer'] as $transfer) {
+                    $stock += $transfer['quantity'];
+                }
+            }
         }
         
         $stock -= $cumulativeSales;
@@ -542,13 +734,15 @@ class SingleProductAnalysisService
         $adjustmentEvents = $this->getWeeklyAdjustmentEvents($janCodes, $baseDate, $totalWeeks);
         $transferEvents = $this->getWeeklyTransferEvents($janCodes, $baseDate, $totalWeeks);
         $orderEvents = $this->getWeeklyOrderEvents($janCodes, $baseDate, $totalWeeks);
+        $productTransferEvents = $this->getWeeklyProductTransferEvents($janCodes, $baseDate, $totalWeeks);
         
         for ($week = 1; $week <= $totalWeeks; $week++) {
             $events[$week] = [
                 'purchase' => $purchaseEvents[$week] ?? [],
                 'adjustment' => $adjustmentEvents[$week] ?? [],
                 'transfer' => $transferEvents[$week] ?? [],
-                'order' => $orderEvents[$week] ?? []
+                'order' => $orderEvents[$week] ?? [],
+                'product_transfer' => $productTransferEvents[$week] ?? []
             ];
         }
         
@@ -654,7 +848,33 @@ class SingleProductAnalysisService
         $results = $this->db->query($sql, $params)->getResultArray();
         
         return $this->mapEventsToWeeks($results, $baseDate, $totalWeeks, 'order_date');
-    }    
+    }
+    
+    /**
+     * 週別商品振替イベント取得
+     */
+    protected function getWeeklyProductTransferEvents(array $janCodes, string $baseDate, int $totalWeeks): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            transfer_date,
+            SUM(transfer_quantity) as total_quantity,
+            transfer_type,
+            COUNT(*) as event_count
+        FROM product_transfer_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+          AND transfer_date >= ?
+        GROUP BY transfer_date, transfer_type
+        ORDER BY transfer_date
+        ";
+        
+        $params = array_merge($janCodes, [$baseDate]);
+        $results = $this->db->query($sql, $params)->getResultArray();
+        
+        return $this->mapEventsToWeeks($results, $baseDate, $totalWeeks, 'transfer_date');
+    }
     
     /**
      * イベントを週別にマッピング
@@ -679,7 +899,8 @@ class SingleProductAnalysisService
                     'quantity' => isset($event['total_quantity']) ? (int)$event['total_quantity'] : 0,
                     'reason' => $event['adjustment_reason_name'] ?? null,
                     'type' => $event['transfer_type'] ?? null,
-                    'avg_cost_price' => isset($event['avg_cost_price']) ? (float)$event['avg_cost_price'] : 0
+                    'avg_cost_price' => isset($event['avg_cost_price']) ? (float)$event['avg_cost_price'] : 0,
+                    'event_count' => isset($event['event_count']) ? (int)$event['event_count'] : 1
                 ];
                 
                 $weeklyEvents[$weekNumber][] = $eventData;
@@ -702,14 +923,21 @@ class SingleProductAnalysisService
         
         $adjustmentQty = $this->getAdjustmentQuantity($janCodes);
         
-        $currentStock = $purchaseInfo['total_purchase_qty'] - $totalSales - $adjustmentQty['total_adjustment'];
+        // 在庫 = (仕入 + 商品振替) - 売上 + 調整
+        // $purchaseInfo['total_purchase_qty'] には仕入と商品振替の合計が既に含まれている
+        $currentStock = $purchaseInfo['total_purchase_qty'] - $totalSales + $adjustmentQty['total_adjustment'];
         $currentStockValue = $currentStock * $purchaseInfo['avg_cost_price'];
         
+        // 商品振替数は表示用に別途取得
+        $productTransferQty = $this->getProductTransferQuantity($janCodes);
+
         return [
             'current_stock_qty' => (int)$currentStock,
             'current_stock_value' => (float)$currentStockValue,
             'total_adjustment_qty' => (int)$adjustmentQty['total_adjustment'],
-            'adjustment_records' => (int)$adjustmentQty['record_count']
+            'adjustment_records' => (int)$adjustmentQty['record_count'],
+            'total_product_transfer_qty' => (int)$productTransferQty['total_transfer'],
+            'product_transfer_records' => (int)$productTransferQty['record_count']
         ];
     }
     
@@ -732,6 +960,29 @@ class SingleProductAnalysisService
         
         return [
             'total_adjustment' => (int)($result['total_adjustment'] ?? 0),
+            'record_count' => (int)($result['record_count'] ?? 0)
+        ];
+    }
+    
+    /**
+     * 商品振替数量取得
+     */
+    protected function getProductTransferQuantity(array $janCodes): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            SUM(transfer_quantity) as total_transfer,
+            COUNT(*) as record_count
+        FROM product_transfer_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+        ";
+        
+        $result = $this->db->query($sql, $janCodes)->getRowArray();
+        
+        return [
+            'total_transfer' => (int)($result['total_transfer'] ?? 0),
             'record_count' => (int)($result['record_count'] ?? 0)
         ];
     }
@@ -833,6 +1084,16 @@ class SingleProductAnalysisService
             ];
         }
         
+        // データ不足の警告
+        if (!$purchaseInfo['has_purchase_data'] && !$purchaseInfo['has_transfer_data']) {
+            $warnings[] = [
+                'type' => 'no_purchase_data',
+                'level' => 'warning',
+                'message' => '仕入伝票・商品振替伝票のデータがありません。販売データのみで分析しています。',
+                'icon' => 'bi-exclamation-triangle'
+            ];
+        }
+        
         // 返品関連の警告
         $totalReturns = array_sum(array_column($weeklyAnalysis, 'return_qty'));
         if ($totalReturns < 0) {
@@ -886,7 +1147,8 @@ class SingleProductAnalysisService
             'purchase_slips' => $this->getPurchaseSlipDetails($janCodes),
             'adjustment_slips' => $this->getAdjustmentSlipDetails($janCodes),
             'transfer_slips' => $this->getTransferSlipDetails($janCodes),
-            'order_slips' => $this->getOrderSlipDetails($janCodes)
+            'order_slips' => $this->getOrderSlipDetails($janCodes),
+            'product_transfer_slips' => $this->getProductTransferSlipDetails($janCodes)
         ];
     }
     
@@ -921,6 +1183,42 @@ class SingleProductAnalysisService
             $row['avg_cost_price'] = (float)$row['avg_cost_price'];
             $row['total_amount'] = (float)$row['total_amount'];
             $row['slip_number'] = (int)$row['slip_number'];
+        }
+        
+        return $results;
+    }
+    
+    /**
+     * 商品振替伝票詳細取得
+     */
+    protected function getProductTransferSlipDetails(array $janCodes): array
+    {
+        $janCodesPlaceholder = str_repeat('?,', count($janCodes) - 1) . '?';
+        
+        $sql = "
+        SELECT 
+            transfer_date,
+            adjustment_number,
+            store_name,
+            transfer_type,
+            transfer_reason_name,
+            SUM(transfer_quantity) as total_quantity,
+            AVG(cost_price) as avg_cost_price,
+            SUM(cost_amount) as total_amount,
+            staff_name
+        FROM product_transfer_slip
+        WHERE jan_code IN ({$janCodesPlaceholder})
+        GROUP BY transfer_date, input_number, adjustment_number, store_name, transfer_type, transfer_reason_name, staff_name
+        ORDER BY transfer_date, input_number, adjustment_number
+        ";
+        
+        $results = $this->db->query($sql, $janCodes)->getResultArray();
+        
+        foreach ($results as &$row) {
+            $row['total_quantity'] = (int)$row['total_quantity'];
+            $row['avg_cost_price'] = (float)$row['avg_cost_price'];
+            $row['total_amount'] = (float)$row['total_amount'];
+            $row['adjustment_number'] = (int)$row['adjustment_number'];
         }
         
         return $results;

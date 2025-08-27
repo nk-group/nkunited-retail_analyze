@@ -315,6 +315,16 @@
                                         <?php endif; ?>
                                     <?php endif; ?>
                                     
+                                    <?php if (!empty($week['product_transfer_events'])): ?>
+                                        <?php
+                                        $totalTransfer = array_sum(array_column($week['product_transfer_events'], 'quantity'));
+                                        if ($totalTransfer != 0):
+                                            $sign = $totalTransfer > 0 ? '+' : '';
+                                        ?>
+                                            <span class="event-badge badge-product-transfer">🔄 振替<?= $sign . $totalTransfer ?></span>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                    
                                     <?php if (!empty($week['adjustment_events'])): ?>
                                         <?php
                                         $totalAdjustment = array_sum(array_column($week['adjustment_events'], 'quantity'));
@@ -387,6 +397,7 @@
             <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" data-bs-target="#slipDetails" aria-expanded="false">
                 <small class="me-3">
                     📦 仕入<?= $formatted_result['slip_details']['summary']['purchase_count'] ?>件 
+                    🔄 振替<?= $formatted_result['slip_details']['summary']['product_transfer_count'] ?>件 
                     ⚖️ 調整<?= $formatted_result['slip_details']['summary']['adjustment_count'] ?>件 
                     🚚 移動<?= $formatted_result['slip_details']['summary']['transfer_count'] ?>件
                     📠 発注<?= $formatted_result['slip_details']['summary']['order_count'] ?>件
@@ -401,6 +412,11 @@
                     <li class="nav-item">
                         <a class="nav-link active" data-bs-toggle="tab" href="#purchaseSlips">
                             📦 仕入伝票 (<?= $formatted_result['slip_details']['summary']['purchase_count'] ?>件)
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" data-bs-toggle="tab" href="#productTransferSlips">
+                            🔄 商品振替伝票 (<?= $formatted_result['slip_details']['summary']['product_transfer_count'] ?>件)
                         </a>
                     </li>
                     <li class="nav-item">
@@ -457,7 +473,57 @@
                                         <?php endforeach; ?>
                                     <?php else: ?>
                                         <tr>
-                                            <td colspan="8" class="text-center text-muted">仕入データがありません</td>
+                                            <td colspan="9" class="text-center text-muted">仕入データがありません</td>
+                                        </tr>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- 商品振替伝票 -->
+                    <div class="tab-pane fade" id="productTransferSlips">
+                        <div style="overflow-x: auto;">
+                            <table class="table table-sm slip-table">
+                                <thead>
+                                    <tr>
+                                        <th>日付</th>
+                                        <th>調整番号</th>
+                                        <th>店舗</th>
+                                        <th>振替区分</th>
+                                        <th>理由</th>
+                                        <th>数量</th>
+                                        <th>単価</th>
+                                        <th>金額</th>
+                                        <th>担当者</th>
+                                        <th>備考</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (!empty($formatted_result['slip_details']['product_transfer_slips'])): ?>
+                                        <?php foreach ($formatted_result['slip_details']['product_transfer_slips'] as $slip): ?>
+                                            <tr class="<?= $slip['transfer_type'] === 'IN' ? 'table-success' : 'table-warning' ?>">
+                                                <td><?= esc($slip['date']) ?></td>
+                                                <td><?= esc($slip['adjustment_number']) ?></td>
+                                                <td><?= esc($slip['store']) ?></td>
+                                                <td>
+                                                    <span class="badge <?= $slip['transfer_type'] === 'IN' ? 'bg-success' : 'bg-warning' ?>">
+                                                        <?= esc($slip['transfer_type']) ?>
+                                                    </span>
+                                                </td>
+                                                <td><?= esc($slip['reason']) ?></td>
+                                                <td class="<?= $slip['quantity'] > 0 ? 'text-success' : 'text-danger' ?>">
+                                                    <?= $slip['quantity'] > 0 ? '+' : '' ?><?= number_format($slip['quantity']) ?>
+                                                </td>
+                                                <td>¥<?= number_format($slip['unit_price']) ?></td>
+                                                <td>¥<?= number_format($slip['amount']) ?></td>
+                                                <td><?= esc($slip['staff']) ?></td>
+                                                <td><?= esc($slip['remarks']) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <tr>
+                                            <td colspan="10" class="text-center text-muted">商品振替データがありません</td>
                                         </tr>
                                     <?php endif; ?>
                                 </tbody>
